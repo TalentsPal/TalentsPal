@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { FiMail, FiLock, FiLogIn, FiUserCheck } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
+import { FaLinkedin } from 'react-icons/fa';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { LoginFormData, FormErrors, UserRole } from '@/types';
@@ -195,6 +197,41 @@ export default function LoginPage() {
             >
               Sign In
             </Button>
+
+            {/* Social Login */}
+            <div className="mt-6">
+              <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-dark-200 dark:border-dark-700" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-white dark:bg-dark-900 text-dark-500 dark:text-dark-400">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors duration-200"
+                  leftIcon={<FcGoogle className="text-xl" />}
+                  onClick={() => { }}
+                >
+                  Google
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors duration-200"
+                  leftIcon={<FaLinkedin className="text-xl text-[#0077b5]" />}
+                  onClick={() => { }}
+                >
+                  LinkedIn
+                </Button>
+              </div>
+            </div>
 
             {/* Divider */}
             <div className="relative">
