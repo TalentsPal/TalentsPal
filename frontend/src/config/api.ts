@@ -17,6 +17,11 @@ export const API_ENDPOINTS = {
     UPDATE_PROFILE: `${API_BASE_URL}/auth/update-profile`,
     CHANGE_PASSWORD: `${API_BASE_URL}/auth/change-password`,
   },
+  // Company endpoints
+  COMPANIES: {
+    LIST: `${API_BASE_URL}/companies`,
+    DETAILS: (id: string) => `${API_BASE_URL}/companies/${id}`,
+  },
   // Add more endpoints as needed
 };
 
