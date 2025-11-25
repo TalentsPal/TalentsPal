@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import connectDB from './config/db';
 import { errorHandler } from './utils/errorHandler';
 import authRoutes from './routes/authRoutes';
+import companyRoutes from './routes/companyRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -57,6 +58,7 @@ app.get('/health', (req: Request, res: Response) => {
 
 // API version 1 routes
 app.use('/api/auth', authRoutes);
+app.use('/api/companies', companyRoutes);
 
 // 404 handler for undefined routes
 app.use((req: Request, res: Response) => {
