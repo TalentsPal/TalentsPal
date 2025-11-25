@@ -1,0 +1,34 @@
+/**
+ * API Configuration
+ * Central configuration for API endpoints and settings
+ */
+
+// Base API URL - Update this based on your environment
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+// API Endpoints
+export const API_ENDPOINTS = {
+  // Auth endpoints
+  AUTH: {
+    SIGNUP: `${API_BASE_URL}/auth/signup`,
+    LOGIN: `${API_BASE_URL}/auth/login`,
+    LOGOUT: `${API_BASE_URL}/auth/logout`,
+    ME: `${API_BASE_URL}/auth/me`,
+    UPDATE_PROFILE: `${API_BASE_URL}/auth/update-profile`,
+    CHANGE_PASSWORD: `${API_BASE_URL}/auth/change-password`,
+  },
+  // Add more endpoints as needed
+};
+
+// API Headers
+export const getHeaders = (token?: string) => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return headers;
+};

@@ -153,18 +153,9 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        setErrors(data.errors || { general: data.message });
-        return;
-      }
+      // Call the backend API
+      const { signupUser } = await import('@/services/authService');
+      const response = await signupUser(formData);
 
       // Redirect based on role
       const redirectPaths = {
@@ -174,8 +165,8 @@ export default function SignupPage() {
       };
 
       router.push(redirectPaths[formData.role]);
-    } catch (error) {
-      setErrors({ general: 'An error occurred. Please try again.' });
+    } catch (error: any) {
+      setErrors({ general: error.message || 'An error occurred. Please try again.' });
     } finally {
       setIsLoading(false);
     }

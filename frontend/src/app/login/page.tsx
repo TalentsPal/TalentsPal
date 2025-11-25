@@ -50,21 +50,11 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+      // Call the backend API
+      const { loginUser } = await import('@/services/authService');
+      const data = await loginUser(formData);
 
-      if (!response.ok) {
-        const data = await response.json();
-        setErrors(data.errors || { general: data.message });
-        return;
-      }
-
-      const data = await response.json();
-      const userRole: UserRole = data.user.role;
+      const userRole: UserRole = data.data.user.role;
 
       // Redirect based on role
       const redirectPaths: Record<UserRole, string> = {
@@ -74,8 +64,8 @@ export default function LoginPage() {
       };
 
       router.push(redirectPaths[userRole]);
-    } catch (error) {
-      setErrors({ general: 'An error occurred. Please try again.' });
+    } catch (error: any) {
+      setErrors({ general: error.message || 'An error occurred. Please try again.' });
     } finally {
       setIsLoading(false);
     }
