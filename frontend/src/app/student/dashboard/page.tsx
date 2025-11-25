@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   FiTrendingUp,
@@ -128,10 +129,15 @@ export default function StudentDashboard() {
             transition={{ delay: 0.5 }}
             className="card p-6"
           >
-            <h2 className="text-2xl font-bold text-dark-900 dark:text-dark-50 mb-4 flex items-center gap-2">
-              <FiTrendingUp className="text-primary-600" />
-              Recommended for You
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-dark-900 dark:text-dark-50 flex items-center gap-2">
+                <FiTrendingUp className="text-primary-600" />
+                Recommended for You
+              </h2>
+              <Link href="/student/companies" className="text-sm text-primary-600 hover:text-primary-700 font-medium hover:underline">
+                View All
+              </Link>
+            </div>
             <div className="space-y-4">
               {['Tech Corp', 'Innovation Labs', 'Digital Solutions'].map((company, i) => (
                 <div
