@@ -16,6 +16,8 @@ export const API_ENDPOINTS = {
     ME: `${API_BASE_URL}/auth/me`,
     UPDATE_PROFILE: `${API_BASE_URL}/auth/update-profile`,
     CHANGE_PASSWORD: `${API_BASE_URL}/auth/change-password`,
+    UPLOAD_PROFILE_IMAGE: `${API_BASE_URL}/auth/upload-profile-image`,
+    DELETE_PROFILE_IMAGE: `${API_BASE_URL}/auth/delete-profile-image`,
   },
   // Company endpoints
   COMPANIES: {
