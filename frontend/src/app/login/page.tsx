@@ -66,8 +66,12 @@ export default function LoginPage() {
       };
 
       router.push(redirectPaths[userRole]);
-    } catch (error: any) {
-      setErrors({ general: error.message || 'An error occurred. Please try again.' });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setErrors({ general: error.message });
+      } else {
+        setErrors({ general: 'An error occurred. Please try again.' });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -217,7 +221,9 @@ export default function LoginPage() {
                   variant="outline"
                   className="w-full hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors duration-200"
                   leftIcon={<FcGoogle className="text-xl" />}
-                  onClick={() => { }}
+                  onClick={() => {
+                    window.location.href = 'http://localhost:5000/api/auth/google';
+                  }}
                 >
                   Google
                 </Button>
@@ -226,7 +232,9 @@ export default function LoginPage() {
                   variant="outline"
                   className="w-full hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors duration-200"
                   leftIcon={<FaLinkedin className="text-xl text-[#0077b5]" />}
-                  onClick={() => { }}
+                  onClick={() => {
+                    window.location.href = 'http://localhost:5000/api/auth/linkedin';
+                  }}
                 >
                   LinkedIn
                 </Button>
