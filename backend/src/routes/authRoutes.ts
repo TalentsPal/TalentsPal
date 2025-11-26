@@ -7,8 +7,12 @@ import {
   updateProfile,
   changePassword,
   oauthCallback,
+  verifyEmail,
+  resendVerification,
 } from '../controllers/authController';
+import { uploadProfileImage, deleteProfileImage } from '../controllers/uploadController';
 import { authenticate } from '../middleware/auth';
+import { upload } from '../middleware/upload';
 
 const router = express.Router();
 
@@ -18,19 +22,18 @@ const router = express.Router();
 router.post('/signup', signup);
 router.post('/login', login);
 
+// Email verification routes
+router.get('/verify-email/:token', verifyEmail);
+router.post('/resend-verification', resendVerification);
+
 // Test route
 router.get('/test', (req, res) => {
   res.json({ success: true, message: 'Auth routes are working!' });
 });
 
-console.log('🔍 Setting up Google auth route...');
 // Google Auth
 router.get(
   '/google',
-  (req, res, next) => {
-    console.log('📍 Google auth route hit!');
-    next();
-  },
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 router.get(
@@ -56,5 +59,9 @@ router.get(
 router.get('/me', authenticate, getMe);
 router.put('/update-profile', authenticate, updateProfile);
 router.put('/change-password', authenticate, changePassword);
+
+// Profile image upload routes
+router.post('/upload-profile-image', authenticate, upload.single('profileImage'), uploadProfileImage);
+router.delete('/delete-profile-image', authenticate, deleteProfileImage);
 
 export default router;
