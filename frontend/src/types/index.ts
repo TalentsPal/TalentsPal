@@ -44,9 +44,11 @@ export interface SignupFormData {
   phone: string;
   city: string;
   university?: string;
+  universityOther?: string;
   // Student fields
   linkedInUrl?: string;
   major?: string;
+  majorOther?: string;
   graduationYear?: string;
   interests?: string[];
   // Company fields
@@ -54,6 +56,7 @@ export interface SignupFormData {
   companyEmail?: string;
   companyLocation?: string;
   industry?: string;
+  industryOther?: string;
   description?: string;
 }
 
