@@ -20,6 +20,10 @@ export interface IUser extends Document {
   isActive: boolean;
   profileImage?: string;
 
+  // Email verification fields
+  emailVerificationToken?: string;
+  emailVerificationExpires?: Date;
+
   // OAuth fields
   googleId?: string;
   linkedinId?: string;
@@ -29,6 +33,7 @@ export interface IUser extends Document {
   major?: string;
   graduationYear?: string;
   interests?: string[];
+  bio?: string;
 
   // Company-specific fields
   companyName?: string;
@@ -121,6 +126,14 @@ const UserSchema = new Schema<IUser>(
       type: String,
       default: null,
     },
+    emailVerificationToken: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpires: {
+      type: Date,
+      select: false,
+    },
 
     // Student-specific fields
     linkedInUrl: {
@@ -138,6 +151,11 @@ const UserSchema = new Schema<IUser>(
     interests: {
       type: [String],
       default: [],
+    },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Bio cannot exceed 500 characters'],
     },
 
     // Company-specific fields
@@ -223,6 +241,7 @@ UserSchema.methods.getPublicProfile = function (): Partial<IUser> {
       major: this.major,
       graduationYear: this.graduationYear,
       interests: this.interests,
+      bio: this.bio,
     };
   } else if (this.role === 'company') {
     return {
