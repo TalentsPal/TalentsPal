@@ -2,6 +2,7 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as LinkedInStrategy } from 'passport-linkedin-oauth2';
 import User from '../models/User';
+import { uploadGoogleProfileImage } from './cloudinary';
 
 // Serialize/Deserialize user (not strictly needed for session: false, but good practice)
 passport.serializeUser((user: any, done) => {
@@ -17,11 +18,7 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
-// Google Strategy
-console.log('🔑 Google OAuth Config:', {
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  callbackURL: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/auth/google/callback`,
-});
+
 
 passport.use(
   new GoogleStrategy(
@@ -47,14 +44,27 @@ passport.use(
             // Link googleId to existing user
             user.googleId = profile.id;
             if (!user.profileImage && profile.photos?.[0]?.value) {
-              user.profileImage = profile.photos[0].value;
+              // Upload Google profile image to Cloudinary
+              const cloudinaryResult = await uploadGoogleProfileImage(
+                profile.photos[0].value,
+                user._id.toString()
+              );
+              if (cloudinaryResult.url) {
+                user.profileImage = cloudinaryResult.url;
+              }
             }
             await user.save();
             return done(null, user);
           }
         }
 
-        // Create new user
+        // Create new user with Cloudinary image
+        let profileImageUrl = '';
+        if (profile.photos?.[0]?.value) {
+          // We'll upload after user is created to get the user ID
+          profileImageUrl = profile.photos[0].value;
+        }
+
         const newUser = await User.create({
           fullName: profile.displayName,
           email: email,
@@ -62,8 +72,19 @@ passport.use(
           role: 'student', // Default role
           isProfileComplete: false,
           isEmailVerified: true, // Google verified
-          profileImage: profile.photos?.[0]?.value,
         });
+
+        // Upload profile image to Cloudinary after user is created
+        if (profileImageUrl) {
+          const cloudinaryResult = await uploadGoogleProfileImage(
+            profileImageUrl,
+            newUser._id.toString()
+          );
+          if (cloudinaryResult.url) {
+            newUser.profileImage = cloudinaryResult.url;
+            await newUser.save();
+          }
+        }
 
         done(null, newUser);
       } catch (error) {
@@ -99,7 +120,14 @@ passport.use(
             // Link linkedinId to existing user
             user.linkedinId = profile.id;
             if (!user.profileImage && profile.photos?.[0]?.value) {
-              user.profileImage = profile.photos[0].value;
+              // Upload LinkedIn profile image to Cloudinary
+              const cloudinaryResult = await uploadGoogleProfileImage(
+                profile.photos[0].value,
+                user._id.toString()
+              );
+              if (cloudinaryResult.url) {
+                user.profileImage = cloudinaryResult.url;
+              }
             }
             if (!user.linkedInUrl) {
               // Construct public profile URL if possible or store ID
@@ -109,7 +137,12 @@ passport.use(
           }
         }
 
-        // Create new user
+        // Create new user with Cloudinary image
+        let profileImageUrl = '';
+        if (profile.photos?.[0]?.value) {
+          profileImageUrl = profile.photos[0].value;
+        }
+
         const newUser = await User.create({
           fullName: profile.displayName,
           email: email,
@@ -117,8 +150,19 @@ passport.use(
           role: 'student', // Default role
           isProfileComplete: false,
           isEmailVerified: true, // LinkedIn verified
-          profileImage: profile.photos?.[0]?.value,
         });
+
+        // Upload profile image to Cloudinary after user is created
+        if (profileImageUrl) {
+          const cloudinaryResult = await uploadGoogleProfileImage(
+            profileImageUrl,
+            newUser._id.toString()
+          );
+          if (cloudinaryResult.url) {
+            newUser.profileImage = cloudinaryResult.url;
+            await newUser.save();
+          }
+        }
 
         done(null, newUser);
       } catch (error) {
