@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.ts",
     "build": "tsc",
     "seed": "ts-node src/seed.ts",
+    "seed:metadata": "ts-node src/scripts/seedMetadata.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -15,6 +16,9 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@types/passport": "^1.0.17",
+    "@types/passport-google-oauth20": "^2.0.17",
+    "@types/passport-linkedin-oauth2": "^1.5.6",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -23,6 +27,9 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.0.0",
     "morgan": "^1.10.1",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "passport-linkedin-oauth2": "^2.0.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
