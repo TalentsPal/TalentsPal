@@ -9,6 +9,7 @@ import {
   sanitizeInput,
   isValidRole,
 } from '../utils/validation';
+import { generateVerificationToken, sendVerificationEmail } from '../utils/email';
 
 /**
  * @route   POST /api/auth/signup
@@ -87,6 +88,10 @@ export const signup = asyncHandler(
       throw new AppError('Email already registered', 409);
     }
 
+    // Generate verification token
+    const verificationToken = generateVerificationToken();
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
     // Prepare user data
     const userData = {
       fullName: sanitizedFullName,
@@ -96,6 +101,8 @@ export const signup = asyncHandler(
       phone,
       city,
       university: university || undefined,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpires: verificationExpires,
       // Add student-specific fields
       ...(role === 'student' && {
         linkedInUrl: linkedInUrl || undefined,
@@ -116,16 +123,26 @@ export const signup = asyncHandler(
     // Create new user
     const user = await User.create(userData);
 
-    // Generate tokens
-    const tokens = generateTokenPair(user);
+    // Send verification email
+    try {
+      await sendVerificationEmail(sanitizedEmail, sanitizedFullName, verificationToken);
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      // Don't fail the signup if email fails, but log it
+    }
 
-    // Send response
+    // Send response (no tokens until email is verified)
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'User registered successfully. Please check your email to verify your account.',
       data: {
-        user: user.getPublicProfile(),
-        ...tokens,
+        user: {
+          _id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          isEmailVerified: user.isEmailVerified,
+        },
       },
     });
   }
@@ -163,6 +180,11 @@ export const login = asyncHandler(
     // Check if user is active
     if (!user.isActive) {
       throw new AppError('Your account has been deactivated', 401);
+    }
+
+    // Check if email is verified
+    if (!user.isEmailVerified) {
+      throw new AppError('Please verify your email before logging in. Check your inbox for the verification link.', 403);
     }
 
     // Verify password
@@ -239,6 +261,8 @@ export const updateProfile = asyncHandler(
       major,
       graduationYear,
       interests,
+      bio,
+      linkedInUrl,
       role, // Allow setting role if needed
     } = req.body;
 
@@ -274,6 +298,8 @@ export const updateProfile = asyncHandler(
       if (major !== undefined) user.major = major;
       if (graduationYear !== undefined) user.graduationYear = graduationYear;
       if (interests !== undefined) user.interests = interests;
+      if (bio !== undefined) user.bio = bio;
+      if (linkedInUrl !== undefined) user.linkedInUrl = linkedInUrl;
     } else if (user.role === 'company') {
       // Company fields
       const { companyName, companyLocation, industry, description } = req.body;
@@ -380,5 +406,101 @@ export const oauthCallback = asyncHandler(
     const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&isProfileComplete=${isProfileComplete}`;
 
     res.redirect(redirectUrl);
+  }
+);
+
+/**
+ * @route   GET /api/auth/verify-email/:token
+ * @desc    Verify user email with token
+ * @access  Public
+ */
+export const verifyEmail = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const { token } = req.params;
+
+    if (!token) {
+      throw new AppError('Verification token is required', 400);
+    }
+
+    // Find user with this verification token that hasn't expired
+    const user = await User.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: Date.now() },
+    }).select('+emailVerificationToken +emailVerificationExpires');
+
+    if (!user) {
+      throw new AppError('Invalid or expired verification token', 400);
+    }
+
+    // Mark email as verified
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    // Generate tokens for automatic login
+    const tokens = generateTokenPair(user);
+
+    // Send response
+    res.status(200).json({
+      success: true,
+      message: 'Email verified successfully! You can now log in.',
+      data: {
+        user: user.getPublicProfile(),
+        ...tokens,
+      },
+    });
+  }
+);
+
+/**
+ * @route   POST /api/auth/resend-verification
+ * @desc    Resend verification email
+ * @access  Public
+ */
+export const resendVerification = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const { email } = req.body;
+
+    if (!email) {
+      throw new AppError('Email is required', 400);
+    }
+
+    // Sanitize email
+    const sanitizedEmail = sanitizeInput(email.toLowerCase());
+
+    // Find user
+    const user = await User.findOne({ email: sanitizedEmail });
+
+    if (!user) {
+      throw new AppError('No account found with this email', 404);
+    }
+
+    // Check if already verified
+    if (user.isEmailVerified) {
+      throw new AppError('Email is already verified', 400);
+    }
+
+    // Generate new verification token
+    const verificationToken = generateVerificationToken();
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    user.emailVerificationToken = verificationToken;
+    user.emailVerificationExpires = verificationExpires;
+    await user.save();
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(sanitizedEmail, user.fullName, verificationToken);
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+      throw new AppError('Failed to send verification email. Please try again later.', 500);
+    }
+
+    // Send response
+    res.status(200).json({
+      success: true,
+      message: 'Verification email sent successfully. Please check your inbox.',
+    });
   }
 );
