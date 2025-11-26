@@ -68,7 +68,16 @@ export default function LoginPage() {
       router.push(redirectPaths[userRole]);
     } catch (error: unknown) {
       if (error instanceof Error) {
-        setErrors({ general: error.message });
+        const errorMessage = error.message;
+        setErrors({ general: errorMessage });
+        
+        // If email not verified, show resend link
+        if (errorMessage.includes('verify your email')) {
+          setErrors({ 
+            general: errorMessage,
+            emailNotVerified: true as any
+          });
+        }
       } else {
         setErrors({ general: 'An error occurred. Please try again.' });
       }
@@ -133,6 +142,14 @@ export default function LoginPage() {
                 <p className="text-danger-700 dark:text-danger-400 text-sm">
                   {errors.general}
                 </p>
+                {errors.emailNotVerified && (
+                  <Link 
+                    href="/resend-verification"
+                    className="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline block mt-2"
+                  >
+                    Resend verification email →
+                  </Link>
+                )}
               </motion.div>
             )}
 
