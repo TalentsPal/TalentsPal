@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -25,6 +25,7 @@ import Button from '@/components/ui/Button';
 import MultiSelect from '@/components/ui/MultiSelect';
 import { SignupFormData, UserRole, FormErrors } from '@/types';
 import { validateSignupForm, getPasswordStrength } from '@/utils/validation';
+import { fetchUniversities, fetchMajors, fetchIndustries, fetchCities } from '@/services/metadataService';
 
 const PALESTINIAN_CITIES = [
   'Jerusalem',
@@ -81,10 +82,55 @@ const INTEREST_OPTIONS = [
   { value: 'interview-prep', label: 'Interview Preparation' },
 ];
 
+const MAJORS = [
+  'Computer Science',
+  'Information Technology',
+  'Software Engineering',
+  'Computer Engineering',
+  'Business Administration',
+  'Accounting',
+  'Finance',
+  'Marketing',
+  'Economics',
+  'Civil Engineering',
+  'Mechanical Engineering',
+  'Electrical Engineering',
+  'Industrial Engineering',
+  'Architecture',
+  'Medicine',
+  'Nursing',
+  'Pharmacy',
+  'Dentistry',
+  'Law',
+  'English Language',
+  'Arabic Language',
+  'Translation',
+  'Journalism',
+  'Media & Communication',
+  'Graphic Design',
+  'Interior Design',
+  'Psychology',
+  'Social Work',
+  'Education',
+  'Mathematics',
+  'Physics',
+  'Chemistry',
+  'Biology',
+  'Agriculture',
+  'Other',
+];
+
 export default function SignupPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  
+  // Dynamic data from API
+  const [cities, setCities] = useState<string[]>([]);
+  const [universities, setUniversities] = useState<{ value: string; label: string }[]>([]);
+  const [majors, setMajors] = useState<{ value: string; label: string }[]>([]);
+  const [industries, setIndustries] = useState<{ value: string; label: string }[]>([]);
+  
   const [formData, setFormData] = useState<SignupFormData>({
     fullName: '',
     email: '',
@@ -94,16 +140,38 @@ export default function SignupPage() {
     phone: '',
     city: '',
     university: '',
+    universityOther: '',
     linkedInUrl: '',
     major: '',
+    majorOther: '',
     graduationYear: '',
     interests: [],
     companyName: '',
     companyEmail: '',
     companyLocation: '',
     industry: '',
+    industryOther: '',
     description: '',
   });
+
+  // Fetch metadata on component mount
+  useEffect(() => {
+    const loadMetadata = async () => {
+      const [citiesData, universitiesData, majorsData, industriesData] = await Promise.all([
+        fetchCities(),
+        fetchUniversities(),
+        fetchMajors(),
+        fetchIndustries(),
+      ]);
+
+      setCities(citiesData);
+      setUniversities(universitiesData.map(u => ({ value: u.name, label: u.name })));
+      setMajors(majorsData.map(m => ({ value: m.name, label: m.name })));
+      setIndustries(industriesData.map(i => ({ value: i.name, label: i.name })));
+    };
+
+    loadMetadata();
+  }, []);
 
   const passwordStrength = getPasswordStrength(formData.password);
 
@@ -153,9 +221,22 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
+      // Prepare data with "Other" field values
+      const submitData = {
+        ...formData,
+        university: formData.university === 'Other' ? formData.universityOther : formData.university,
+        major: formData.major === 'Other' ? formData.majorOther : formData.major,
+        industry: formData.industry === 'Other' ? formData.industryOther : formData.industry,
+      };
+      
+      // Remove the "Other" temporary fields
+      delete submitData.universityOther;
+      delete submitData.majorOther;
+      delete submitData.industryOther;
+
       // Call the backend API
       const { signupUser } = await import('@/services/authService');
-      const response = await signupUser(formData);
+      const response = await signupUser(submitData);
 
       // Redirect based on role
       const redirectPaths = {
@@ -331,7 +412,7 @@ export default function SignupPage() {
                 label="City"
                 value={formData.city}
                 onChange={handleChange}
-                options={PALESTINIAN_CITIES.map((city) => ({
+                options={cities.map((city) => ({
                   value: city,
                   label: city,
                 }))}
@@ -347,13 +428,25 @@ export default function SignupPage() {
               label="University"
               value={formData.university}
               onChange={handleChange}
-              options={UNIVERSITIES.map((uni) => ({
-                value: uni,
-                label: uni,
-              }))}
-              placeholder="Select your university (optional)"
+              options={universities}
+              placeholder="Select your university"
               error={errors.university}
             />
+
+            {formData.university === 'Other' && (
+              <Input
+                id="universityOther"
+                name="universityOther"
+                type="text"
+                label="Please specify your university"
+                value={formData.universityOther || ''}
+                onChange={handleChange}
+                icon={<FiBookOpen />}
+                placeholder="Enter university name"
+                required
+                error={errors.universityOther}
+              />
+            )}
 
             {/* Student-specific Fields */}
             {formData.role === 'student' && (
@@ -382,15 +475,14 @@ export default function SignupPage() {
                 />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Input
+                  <Select
                     id="major"
                     name="major"
-                    type="text"
                     label="Major / Field of Study"
                     value={formData.major}
                     onChange={handleChange}
-                    icon={<FiBookOpen />}
-                    placeholder="e.g., Computer Science"
+                    options={majors}
+                    placeholder="Select your major"
                     error={errors.major}
                   />
 
@@ -408,6 +500,21 @@ export default function SignupPage() {
                     error={errors.graduationYear}
                   />
                 </div>
+
+                {formData.major === 'Other' && (
+                  <Input
+                    id="majorOther"
+                    name="majorOther"
+                    type="text"
+                    label="Please specify your major"
+                    value={formData.majorOther || ''}
+                    onChange={handleChange}
+                    icon={<FiBookOpen />}
+                    placeholder="Enter your major"
+                    required
+                    error={errors.majorOther}
+                  />
+                )}
 
                 <MultiSelect
                   id="interests"
@@ -484,15 +591,27 @@ export default function SignupPage() {
                     label="Industry"
                     value={formData.industry}
                     onChange={handleChange}
-                    options={INDUSTRIES.map((ind) => ({
-                      value: ind,
-                      label: ind,
-                    }))}
+                    options={industries}
                     placeholder="Select industry"
                     required
                     error={errors.industry}
                   />
                 </div>
+
+                {formData.industry === 'Other' && (
+                  <Input
+                    id="industryOther"
+                    name="industryOther"
+                    type="text"
+                    label="Please specify your industry"
+                    value={formData.industryOther || ''}
+                    onChange={handleChange}
+                    icon={<FiBriefcase />}
+                    placeholder="Enter your industry"
+                    required
+                    error={errors.industryOther}
+                  />
+                )}
 
                 <div>
                   <label
