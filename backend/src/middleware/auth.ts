@@ -4,17 +4,6 @@ import { AppError } from '../utils/errorHandler';
 import User from '../models/User';
 
 /**
- * Extend Express Request to include user data
- */
-declare global {
-  namespace Express {
-    interface Request {
-      user?: IJWTPayload;
-    }
-  }
-}
-
-/**
  * Authentication Middleware - Verify JWT Token
  */
 export const authenticate = async (
@@ -69,7 +58,7 @@ export const authorize = (...roles: string[]) => {
         throw new AppError('Authentication required', 401);
       }
 
-      if (!roles.includes(req.user.role)) {
+      if (!roles.includes((req.user as any).role)) {
         throw new AppError(
           'You do not have permission to perform this action',
           403
