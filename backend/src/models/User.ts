@@ -10,14 +10,19 @@ export interface IUser extends Document {
   // Common fields
   fullName: string;
   email: string;
-  password: string;
+  password?: string;
   role: 'student' | 'company' | 'admin';
-  phone: string;
-  city: string;
+  phone?: string;
+  city?: string;
   university?: string;
   isEmailVerified: boolean;
+  isProfileComplete: boolean;
   isActive: boolean;
   profileImage?: string;
+
+  // OAuth fields
+  googleId?: string;
+  linkedinId?: string;
 
   // Student-specific fields
   linkedInUrl?: string;
@@ -65,9 +70,19 @@ const UserSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: function (this: any) {
+        return !this.googleId && !this.linkedinId;
+      },
       minlength: [8, 'Password must be at least 8 characters'],
       select: false, // Don't return password by default in queries
+    },
+    googleId: {
+      type: String,
+      select: false,
+    },
+    linkedinId: {
+      type: String,
+      select: false,
     },
     role: {
       type: String,
@@ -80,12 +95,10 @@ const UserSchema = new Schema<IUser>(
     },
     phone: {
       type: String,
-      required: [true, 'Phone number is required'],
       trim: true,
     },
     city: {
       type: String,
-      required: [true, 'City is required'],
       trim: true,
     },
     university: {
@@ -93,6 +106,10 @@ const UserSchema = new Schema<IUser>(
       trim: true,
     },
     isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    isProfileComplete: {
       type: Boolean,
       default: false,
     },
@@ -155,8 +172,8 @@ const UserSchema = new Schema<IUser>(
  * Pre-save Hook - Hash password before saving to database
  */
 UserSchema.pre('save', async function () {
-  // Only hash password if it has been modified
-  if (!this.isModified('password')) {
+  // Only hash password if it exists and has been modified
+  if (!this.password || !this.isModified('password')) {
     return;
   }
 
@@ -172,6 +189,7 @@ UserSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {
   try {
+    if (!this.password) return false;
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
     return false;
@@ -191,6 +209,7 @@ UserSchema.methods.getPublicProfile = function (): Partial<IUser> {
     city: this.city,
     university: this.university,
     isEmailVerified: this.isEmailVerified,
+    isProfileComplete: this.isProfileComplete,
     profileImage: this.profileImage,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
