@@ -124,6 +124,8 @@ export default function SignupPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [showVerificationMessage, setShowVerificationMessage] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
   
   // Dynamic data from API
   const [cities, setCities] = useState<string[]>([]);
@@ -172,6 +174,14 @@ export default function SignupPage() {
 
     loadMetadata();
   }, []);
+
+  // Resend countdown effect
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCountdown]);
 
   const passwordStrength = getPasswordStrength(formData.password);
 
@@ -238,18 +248,33 @@ export default function SignupPage() {
       const { signupUser } = await import('@/services/authService');
       const response = await signupUser(submitData);
 
-      // Redirect based on role
-      const redirectPaths = {
-        student: '/student/dashboard',
-        admin: '/admin/dashboard',
-        company: '/company/dashboard',
-      };
-
-      router.push(redirectPaths[formData.role]);
+      // Show success message and redirect to verification page
+      setShowVerificationMessage(true);
+      setResendCountdown(60); // Set 60-second countdown
     } catch (error: any) {
       setErrors({ general: error.message || 'An error occurred. Please try again.' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (resendCountdown > 0) return;
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: formData.email }),
+      });
+
+      if (response.ok) {
+        setResendCountdown(60); // Reset countdown
+      }
+    } catch (error) {
+      console.error('Resend error:', error);
     }
   };
 
@@ -281,13 +306,71 @@ export default function SignupPage() {
           </motion.p>
         </div>
 
-        {/* Form Card */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4 }}
-          className="card p-8 md:p-10"
-        >
+        {/* Verification Message */}
+        {showVerificationMessage ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="card p-8 md:p-10 text-center"
+          >
+            <div className="w-20 h-20 mx-auto mb-6 bg-green-100 rounded-full flex items-center justify-center">
+              <svg
+                className="w-12 h-12 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+              Check Your Email!
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              We've sent a verification link to <strong>{formData.email}</strong>
+            </p>
+            <p className="text-gray-600 dark:text-gray-400 mb-8">
+              Please check your inbox and click on the verification link to activate your account.
+              The link will expire in 24 hours.
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={handleResendVerification}
+                disabled={resendCountdown > 0}
+                className={`font-medium ${
+                  resendCountdown > 0 
+                    ? 'text-gray-400 cursor-not-allowed' 
+                    : 'text-primary-600 hover:text-primary-700'
+                }`}
+              >
+                {resendCountdown > 0 
+                  ? `Resend available in ${resendCountdown} seconds` 
+                  : "Didn't receive the email? Click to resend"}
+              </button>
+              <div>
+                <button
+                  onClick={() => router.push('/login')}
+                  className="text-gray-600 hover:text-gray-700"
+                >
+                  Back to Login
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <>
+            {/* Form Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+              className="card p-8 md:p-10"
+            >
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* General Error */}
             {errors.general && (
@@ -489,14 +572,12 @@ export default function SignupPage() {
                   <Input
                     id="graduationYear"
                     name="graduationYear"
-                    type="number"
+                    type="text"
                     label="Graduation Year"
                     value={formData.graduationYear}
                     onChange={handleChange}
                     icon={<FiCalendar />}
-                    placeholder="e.g., 2024"
-                    min="1950"
-                    max={new Date().getFullYear() + 10}
+                    placeholder={`e.g., ${new Date().getFullYear()}`}
                     error={errors.graduationYear}
                   />
                 </div>
@@ -656,6 +737,8 @@ export default function SignupPage() {
             </p>
           </form>
         </motion.div>
+          </>
+        )}
       </motion.div>
     </div>
   );
