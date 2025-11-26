@@ -198,8 +198,10 @@ export const getMe = asyncHandler(
       throw new AppError('Authentication required', 401);
     }
 
+    const userId = (req.user as any).userId;
+
     // Find user by ID
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(userId);
 
     if (!user) {
       throw new AppError('User not found', 404);
@@ -226,10 +228,22 @@ export const updateProfile = asyncHandler(
       throw new AppError('Authentication required', 401);
     }
 
-    const { fullName, phone, profileImage } = req.body;
+    const userId = (req.user as any).userId;
+
+    const {
+      fullName,
+      phone,
+      profileImage,
+      city,
+      university,
+      major,
+      graduationYear,
+      interests,
+      role, // Allow setting role if needed
+    } = req.body;
 
     // Find user
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(userId);
 
     if (!user) {
       throw new AppError('User not found', 404);
@@ -244,12 +258,34 @@ export const updateProfile = asyncHandler(
       user.fullName = sanitizedFullName;
     }
 
-    if (phone !== undefined) {
-      user.phone = phone;
+    if (phone !== undefined) user.phone = phone;
+    if (profileImage !== undefined) user.profileImage = profileImage;
+    if (city !== undefined) user.city = city;
+    if (university !== undefined) user.university = university;
+
+    // Update role if it's currently default 'student' and user wants to change (e.g. to company)
+    // Or just allow it for now.
+    if (role && ['student', 'company'].includes(role)) {
+      user.role = role;
     }
 
-    if (profileImage !== undefined) {
-      user.profileImage = profileImage;
+    // Student fields
+    if (user.role === 'student') {
+      if (major !== undefined) user.major = major;
+      if (graduationYear !== undefined) user.graduationYear = graduationYear;
+      if (interests !== undefined) user.interests = interests;
+    } else if (user.role === 'company') {
+      // Company fields
+      const { companyName, companyLocation, industry, description } = req.body;
+      if (companyName !== undefined) user.companyName = companyName;
+      if (companyLocation !== undefined) user.companyLocation = companyLocation;
+      if (industry !== undefined) user.industry = industry;
+      if (description !== undefined) user.description = description;
+    }
+
+    // Mark profile as complete if essential fields are present
+    if (user.phone && user.city && user.role) {
+      user.isProfileComplete = true;
     }
 
     // Save updated user
@@ -277,6 +313,8 @@ export const changePassword = asyncHandler(
       throw new AppError('Authentication required', 401);
     }
 
+    const userId = (req.user as any).userId;
+
     const { currentPassword, newPassword } = req.body;
 
     // Validate required fields
@@ -291,7 +329,7 @@ export const changePassword = asyncHandler(
     }
 
     // Find user with password
-    const user = await User.findById(req.user.userId).select('+password');
+    const user = await User.findById(userId).select('+password');
 
     if (!user) {
       throw new AppError('User not found', 404);
@@ -313,5 +351,34 @@ export const changePassword = asyncHandler(
       success: true,
       message: 'Password changed successfully',
     });
+  }
+);
+
+/**
+ * @route   GET /api/auth/google/callback
+ * @route   GET /api/auth/linkedin/callback
+ * @desc    Handle OAuth callback
+ * @access  Public
+ */
+export const oauthCallback = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const user = req.user as any; // Cast to any or IUser if available
+
+    if (!user) {
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=auth_failed`);
+      return;
+    }
+
+    // Generate tokens
+    const tokens = generateTokenPair(user);
+
+    // Check if profile is complete
+    const isProfileComplete = user.isProfileComplete;
+
+    // Redirect to frontend with tokens
+    // In production, use a secure cookie or a temporary code exchange, but for now query params are okay for MVP
+    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&isProfileComplete=${isProfileComplete}`;
+
+    res.redirect(redirectUrl);
   }
 );
