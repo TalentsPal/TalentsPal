@@ -2,12 +2,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { FiSearch, FiMapPin, FiGlobe, FiLinkedin, FiMail, FiInfo } from 'react-icons/fi';
+import { FiSearch, FiMapPin, FiGlobe, FiLinkedin, FiMail, FiInfo, FiArrowLeft } from 'react-icons/fi';
 import { getCompanies, Company } from '@/services/companyService';
 import Input from '@/components/ui/Input';
 
 export default function CompaniesPage() {
+  const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -58,6 +60,17 @@ export default function CompaniesPage() {
       </div>
 
       <div className="relative z-10">
+        {/* Back Button */}
+        <motion.button
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          onClick={() => router.push('/student/dashboard')}
+          className="mb-6 flex items-center gap-2 text-white hover:text-blue-300 transition-colors group"
+        >
+          <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" />
+          <span className="font-medium">Back to Dashboard</span>
+        </motion.button>
+
         {/* Header Section */}
         <div className="mb-10">
           <motion.div
