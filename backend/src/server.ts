@@ -3,13 +3,17 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+
+// Load environment variables FIRST - before any other imports
+dotenv.config();
+
+import passport from 'passport';
 import connectDB from './config/db';
 import { errorHandler } from './utils/errorHandler';
+import './config/passport'; // Initialize passport strategies
 import authRoutes from './routes/authRoutes';
 import companyRoutes from './routes/companyRoutes';
-
-// Load environment variables
-dotenv.config();
+import metadataRoutes from './routes/metadataRoutes';
 
 // Initialize Express app
 const app: Application = express();
@@ -43,6 +47,16 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+// Initialize Passport
+app.use(passport.initialize());
+console.log('✅ Passport initialized');
+
+// Log all requests
+app.use((req, res, next) => {
+  console.log(`📥 ${req.method} ${req.url}`);
+  next();
+});
+
 /**
  * API Routes
  */
@@ -57,8 +71,13 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // API version 1 routes
+console.log('📍 Registering auth routes...');
+console.log('Auth routes type:', typeof authRoutes);
+console.log('Auth routes stack length:', (authRoutes as any).stack?.length);
 app.use('/api/auth', authRoutes);
+console.log('✅ Auth routes registered');
 app.use('/api/companies', companyRoutes);
+app.use('/api/metadata', metadataRoutes);
 
 // 404 handler for undefined routes
 app.use((req: Request, res: Response) => {
