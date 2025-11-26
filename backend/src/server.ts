@@ -49,13 +49,6 @@ if (process.env.NODE_ENV === 'development') {
 
 // Initialize Passport
 app.use(passport.initialize());
-console.log('✅ Passport initialized');
-
-// Log all requests
-app.use((req, res, next) => {
-  console.log(`📥 ${req.method} ${req.url}`);
-  next();
-});
 
 /**
  * API Routes
@@ -71,11 +64,7 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // API version 1 routes
-console.log('📍 Registering auth routes...');
-console.log('Auth routes type:', typeof authRoutes);
-console.log('Auth routes stack length:', (authRoutes as any).stack?.length);
 app.use('/api/auth', authRoutes);
-console.log('✅ Auth routes registered');
 app.use('/api/companies', companyRoutes);
 app.use('/api/metadata', metadataRoutes);
 
