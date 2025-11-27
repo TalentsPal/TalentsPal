@@ -3,17 +3,15 @@ package config
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-func (cfg *Config) connectDB() error {
-	uri := os.Getenv("MONGODB_URI")
+func (cfg *AppConfig) connectDB(uri string) error {
 	if uri == "" {
-		return fmt.Errorf("set your 'MONGODB_URI' environment variable")
+		return fmt.Errorf("no mongodb url provided")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -28,7 +26,7 @@ func (cfg *Config) connectDB() error {
 		return fmt.Errorf("failed to ping MongoDB: %w", err)
 	}
 
-	cfg.Database.DB = client.Database("talentspal")
+	cfg.DATABASE = client.Database("talentspal")
 
 	return nil
 }

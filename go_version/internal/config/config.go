@@ -1,17 +1,22 @@
 package config
 
-import "go.mongodb.org/mongo-driver/v2/mongo"
+import (
+	"github.com/cloudinary/cloudinary-go/v2"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+)
 
-type Config struct {
-	Database DatabaseConfig
+type AppConfig struct {
+	DATABASE   *mongo.Database
+	CLOUDINARY *cloudinary.Cloudinary
 }
 
-type DatabaseConfig struct {
-	DB *mongo.Database
-}
+func (cfg *AppConfig) LoadConfig(requirements *AppRequirements) error {
+	err := cfg.connectDB(requirements.Database.MongoURI)
+	if err != nil {
+		return err
+	}
 
-func (cfg *Config) LoadConfig() error {
-	err := cfg.connectDB()
+	err = cfg.initCloudinary(requirements.Cloudinary.CloudName, requirements.Cloudinary.APIKey, requirements.Cloudinary.APISecret)
 	if err != nil {
 		return err
 	}
