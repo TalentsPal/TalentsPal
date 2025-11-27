@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"go_version/internal/config"
+	"go_version/internal/api"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -13,12 +13,12 @@ import (
 )
 
 func main() {
-	app_requirements, err := config.LoadRequirements()
+	app_requirements, err := api.LoadRequirements()
 	if err != nil {
 		log.Fatal("error while loading app requirements: " + err.Error())
 	}
 
-	app_config := config.AppConfig{}
+	app_config := api.AppConfig{}
 	err = app_config.LoadConfig(app_requirements)
 	if err != nil {
 		log.Fatal("error while loading app configs: " + err.Error())
