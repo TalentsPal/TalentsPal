@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Proceed to go version of the application
+        run: cd go_version
+        
       - name: Check out code
         uses: actions/checkout@v4
 
