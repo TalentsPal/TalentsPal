@@ -3,6 +3,8 @@ name: cd
 on:
     push:
         branches: [master]
+        paths:
+          - 'go_version/**' 
 
 jobs:
     deploy:
