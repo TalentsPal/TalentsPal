@@ -7,8 +7,15 @@ import (
 )
 
 type AppRequirements struct {
+	Server     ServerConfig
 	Database   DatabaseRequirements
 	Cloudinary CloudinaryRequirements
+}
+
+type ServerConfig struct {
+	Port        string
+	BackendURL  string
+	FrontendURL string
 }
 
 type DatabaseRequirements struct {
@@ -43,6 +50,13 @@ func LoadRequirements() (*AppRequirements, error) {
 	api_secret := viper.GetString("CLOUDINARY_API_SECRET")
 	if cloud_name == "" || api_key == "" || api_secret == "" {
 		return nil, fmt.Errorf("set your 'CLOUDINARY_CLOUD_NAME' & 'CLOUDINARY_API_KEY' & 'CLOUDINARY_API_SECRET' environment variables")
+	}
+
+	server_port := viper.GetString("PORT")
+	backend_url := viper.GetString("BACKEND_URL")
+	frontend_url := viper.GetString("FRONTEND_URL")
+	if server_port == "" || backend_url == "" || frontend_url == "" {
+		return nil, fmt.Errorf("set your 'PORT' & 'BACKEND_URL' & 'FRONTEND_URL' environment variables")
 	}
 
 	requirements := &AppRequirements{
