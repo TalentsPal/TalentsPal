@@ -7,12 +7,12 @@ import (
 )
 
 type AppRequirements struct {
-	Server     ServerConfig
+	Server     ServerRequirements
 	Database   DatabaseRequirements
 	Cloudinary CloudinaryRequirements
 }
 
-type ServerConfig struct {
+type ServerRequirements struct {
 	Port        string
 	BackendURL  string
 	FrontendURL string
@@ -60,6 +60,11 @@ func LoadRequirements() (*AppRequirements, error) {
 	}
 
 	requirements := &AppRequirements{
+		Server: ServerRequirements{
+			Port:        server_port,
+			BackendURL:  backend_url,
+			FrontendURL: frontend_url,
+		},
 		Database: DatabaseRequirements{
 			MongoURI: mongo_url,
 		},

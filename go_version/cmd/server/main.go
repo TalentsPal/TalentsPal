@@ -40,8 +40,8 @@ func main() {
 	router.Use(middleware.CleanPath) // /api/v1/catalog///topic => /api/v1/catalog/topic
 	router.Use(middleware.Recoverer) // recovers from panics that can happen in routes/handlers
 	// router.Get("/health", api_config.HealthHandler)
-	router.Route("/api/auth", func(r chi.Router) { // to make subroutes
-		// r.Post("/signup", controllers.Signup)
+	router.Route("/api/auth", func(r chi.Router) {
+		r.Post("/signup", app_config.Handle(app_config.SignupHandler))
 	})
 
 	srv := &http.Server{
