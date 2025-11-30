@@ -11,8 +11,8 @@ import (
 
 const SMTP_PORT = 587
 
-func SendVerificationEmail(error_cannel chan<- error, app_name, from, to, backend_url, token, full_name, smtp_host, smtp_user, smtp_pass string, smtp_port int) {
-	verification_url := backend_url + "api/auth/verify-email?token=" + token
+func SendVerificationEmail(error_cannel chan<- error, app_name, from, to, frontend_url, token, full_name, smtp_host, smtp_user, smtp_pass string, smtp_port int) {
+	verification_url := frontend_url + "/verify-email?token=" + token
 
 	// Create a new message
 	message := gomail.NewMessage()

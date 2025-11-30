@@ -45,6 +45,7 @@ func main() {
 	router.Route("/api/auth", func(r chi.Router) {
 		r.Post("/signup", app_config.Handle(app_config.SignupHandler))
 		r.Post("/login", app_config.Handle(app_config.LoginHandler))
+		r.Get("/verify-email/{token}", app_config.Handle(app_config.VerifyEmailHandler))
 	})
 
 	srv := &http.Server{

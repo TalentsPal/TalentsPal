@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -11,9 +10,11 @@ import (
 	"go_version/internal/models"
 	"go_version/internal/utils"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -185,7 +186,7 @@ func (cfg *AppConfig) SignupHandler(w http.ResponseWriter, r *http.Request) erro
 		return utils.NewInternalServerError(err)
 	}
 	error_chan := make(chan error)
-	go utils.SendVerificationEmail(error_chan, cfg.REQUIREMENTS.SMTP.AppName, cfg.REQUIREMENTS.SMTP.EmailFrom, req_body.Email, cfg.REQUIREMENTS.Server.BackendURL, verification_token, req_body.FullName, cfg.REQUIREMENTS.SMTP.SMTPHost, cfg.REQUIREMENTS.SMTP.SMTPUser, cfg.REQUIREMENTS.SMTP.SMTPPass, smtp_port)
+	go utils.SendVerificationEmail(error_chan, cfg.REQUIREMENTS.SMTP.AppName, cfg.REQUIREMENTS.SMTP.EmailFrom, req_body.Email, cfg.REQUIREMENTS.Server.FrontendURL, verification_token, req_body.FullName, cfg.REQUIREMENTS.SMTP.SMTPHost, cfg.REQUIREMENTS.SMTP.SMTPUser, cfg.REQUIREMENTS.SMTP.SMTPPass, smtp_port)
 	go func() {
 		if err := <-error_chan; err != nil {
 			// log it and move on
@@ -243,7 +244,6 @@ func (cfg *AppConfig) LoginHandler(w http.ResponseWriter, r *http.Request) error
 	// Validate email
 	var user models.User
 	err := user_coll.FindOne(ctx, bson.M{"email": req_body.Email}).Decode(&user)
-	fmt.Println(user)
 	if err == mongo.ErrNoDocuments {
 		return utils.NewAppError("Invalid email or password", http.StatusUnauthorized, nil)
 	} else if err != nil {
@@ -298,6 +298,83 @@ func (cfg *AppConfig) LoginHandler(w http.ResponseWriter, r *http.Request) error
 	utils.SuccessResponseWriter(
 		w,
 		"User logged in successfully",
+		response_payload,
+		http.StatusOK,
+	)
+
+	return nil
+}
+
+func (cfg *AppConfig) VerifyEmailHandler(w http.ResponseWriter, r *http.Request) error {
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		return utils.NewAppError("you should provide the token in the url of the request: /api/auth/verify-token/{token}", http.StatusBadRequest, nil)
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	user_coll := cfg.DATABASE.Collection(models.USERS_COLLECTION)
+
+	var user models.User
+	err := user_coll.FindOne(ctx, bson.M{"emailVerificationToken": token, "emailVerificationExpires": bson.M{"$gt": bson.NewDateTimeFromTime(time.Now())}}).Decode(&user)
+	if err == mongo.ErrNoDocuments {
+		return utils.NewAppError("Invalid or expired verification token", http.StatusBadRequest, nil)
+	} else if err != nil {
+		return utils.NewInternalServerError(err)
+	}
+
+	updated_user := bson.M{
+		"$set": bson.M{
+			"isEmailVerified":          true,
+			"emailVerificationToken":   nil,
+			"emailVerificationExpires": nil,
+		},
+	}
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+	err = user_coll.FindOneAndUpdate(ctx,
+		bson.M{
+			"emailVerificationToken":   token,
+			"emailVerificationExpires": bson.M{"$gt": bson.NewDateTimeFromTime(time.Now())},
+		},
+		updated_user,
+		opts,
+	).Decode(&user)
+	if err != nil {
+		return utils.NewInternalServerError(err)
+	}
+
+	access_token, refresh_token, refresh_token_hashed, refresh_token_exp, is_new_refresh_token, err := cfg.refreshTokens(user)
+	if err != nil {
+		return err
+	}
+
+	if is_new_refresh_token {
+		refresh_token_update := bson.M{
+			"$set": bson.M{
+				"refreshToken":    refresh_token_hashed,
+				"refreshTokenExp": refresh_token_exp,
+			},
+		}
+		err := user_coll.FindOneAndUpdate(ctx, bson.M{"email": user.Email}, refresh_token_update, opts).Err()
+		if err != nil {
+			return utils.NewInternalServerError(err)
+		}
+	}
+
+	response_payload := map[string]any{
+		"user":        user.GetPublicProfile(),
+		"accessToken": access_token,
+	}
+
+	// Only send the refresh token when it newly refreshed
+	if is_new_refresh_token {
+		response_payload["refreshToken"] = refresh_token
+	}
+
+	utils.SuccessResponseWriter(
+		w,
+		"Email verified successfully! You can now log in.",
 		response_payload,
 		http.StatusOK,
 	)
