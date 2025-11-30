@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -11,7 +12,6 @@ import (
 	"go_version/internal/utils"
 
 	"github.com/go-playground/validator/v10"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"golang.org/x/crypto/bcrypt"
@@ -167,12 +167,12 @@ func (cfg *AppConfig) SignupHandler(w http.ResponseWriter, r *http.Request) erro
 		Industry:                 req_body.Industry,
 		Description:              req_body.Description,
 		EmailVerificationToken:   verification_token,
-		EmailVerificationExpires: primitive.NewDateTimeFromTime(verificationExpires),
+		EmailVerificationExpires: bson.NewDateTimeFromTime(verificationExpires),
 		IsEmailVerified:          false,
 		IsProfileComplete:        false,
 		IsActive:                 true,
-		CreatedAt:                primitive.NewDateTimeFromTime(now),
-		UpdatedAt:                primitive.NewDateTimeFromTime(now),
+		CreatedAt:                bson.NewDateTimeFromTime(now),
+		UpdatedAt:                bson.NewDateTimeFromTime(now),
 	}
 
 	result, err := users_coll.InsertOne(ctx, user_doc)
@@ -240,14 +240,19 @@ func (cfg *AppConfig) LoginHandler(w http.ResponseWriter, r *http.Request) error
 
 	user_coll := cfg.DATABASE.Collection(models.USERS_COLLECTION)
 
+	log.Printf("hello1")
+
 	// Validate email
 	var user models.User
 	err := user_coll.FindOne(ctx, bson.M{"email": req_body.Email}).Decode(&user)
+	fmt.Println(user)
 	if err == mongo.ErrNoDocuments {
 		return utils.NewAppError("Invalid email or password", http.StatusUnauthorized, nil)
 	} else if err != nil {
 		return utils.NewInternalServerError(err)
 	}
+
+	log.Printf("hello2")
 
 	// Validate password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req_body.Password))
@@ -266,6 +271,40 @@ func (cfg *AppConfig) LoginHandler(w http.ResponseWriter, r *http.Request) error
 	}
 
 	// Generate token then send the response...
+	access_token, refresh_token, refresh_token_hashed, refresh_token_exp, is_new_refresh_token, err := cfg.refreshTokens(user)
+	if err != nil {
+		return err
+	}
+
+	if is_new_refresh_token {
+		refresh_token_update := bson.M{
+			"$set": bson.M{
+				"refreshToken":    refresh_token_hashed,
+				"refreshTokenExp": refresh_token_exp,
+			},
+		}
+		err := user_coll.FindOneAndUpdate(ctx, bson.M{"email": req_body.Email}, refresh_token_update).Err()
+		if err != nil {
+			return utils.NewInternalServerError(err)
+		}
+	}
+
+	response_payload := map[string]any{
+		"user":        user.GetPublicProfile(),
+		"accessToken": access_token,
+	}
+
+	// Only send the refresh token when it newly refreshed
+	if is_new_refresh_token {
+		response_payload["refreshToken"] = refresh_token
+	}
+
+	utils.SuccessResponseWriter(
+		w,
+		"User logged in successfully",
+		response_payload,
+		http.StatusOK,
+	)
 
 	return nil
 }

@@ -1,6 +1,8 @@
 package models
 
-import "go.mongodb.org/mongo-driver/bson/primitive"
+import (
+	"go.mongodb.org/mongo-driver/v2/bson"
+)
 
 const USERS_COLLECTION = "users"
 
@@ -11,7 +13,7 @@ const (
 )
 
 type User struct {
-	ID primitive.ObjectID `bson:"_id,omitempty"`
+	ID bson.ObjectID `bson:"_id,omitempty"`
 
 	// Basic user info
 	FullName     string `bson:"fullName,omitempty"`
@@ -37,8 +39,8 @@ type User struct {
 	Interests []string `bson:"interests,omitempty"`
 
 	// Email verification fields
-	EmailVerificationToken   string             `bson:"emailVerificationToken,omitempty"`
-	EmailVerificationExpires primitive.DateTime `bson:"emailVerificationExpires,omitempty"`
+	EmailVerificationToken   string        `bson:"emailVerificationToken,omitempty"`
+	EmailVerificationExpires bson.DateTime `bson:"emailVerificationExpires,omitempty"`
 
 	// Company-specific fields
 	CompanyName     string `bson:"companyName,omitempty"`
@@ -52,9 +54,13 @@ type User struct {
 	IsProfileComplete bool `bson:"isProfileComplete,omitempty"`
 	IsActive          bool `bson:"isActive,omitempty"`
 
+	// Refresh JWT Token
+	RefreshToken    string        `bson:"refreshToken,omitempty"`
+	RefreshTokenExp bson.DateTime `bson:"refreshTokenExp,omitempty"`
+
 	// Timestamps
-	CreatedAt primitive.DateTime `bson:"createdAt,omitempty"`
-	UpdatedAt primitive.DateTime `bson:"updatedAt,omitempty"`
+	CreatedAt bson.DateTime `bson:"createdAt,omitempty"`
+	UpdatedAt bson.DateTime `bson:"updatedAt,omitempty"`
 
 	// Version (__v)
 	Version int32 `bson:"__v,omitempty"`
@@ -66,18 +72,18 @@ func GetValidRoles() []string {
 }
 
 type BasePublicProfile struct {
-	ID                primitive.ObjectID `json:"id"`
-	FullName          string             `json:"fullName"`
-	Email             string             `json:"email"`
-	Role              string             `json:"role"`
-	Phone             string             `json:"phone"`
-	City              string             `json:"city"`
-	IsEmailVerified   bool               `json:"isEmailVerified"`
-	IsActive          bool               `json:"isActive"`
-	IsProfileComplete bool               `json:"isProfileComplete"`
-	ProfileImage      string             `json:"profileImage"`
-	CreatedAt         primitive.DateTime `json:"createdAt"`
-	UpdatedAt         primitive.DateTime `json:"updatedAt"`
+	ID                bson.ObjectID `json:"id"`
+	FullName          string        `json:"fullName"`
+	Email             string        `json:"email"`
+	Role              string        `json:"role"`
+	Phone             string        `json:"phone"`
+	City              string        `json:"city"`
+	IsEmailVerified   bool          `json:"isEmailVerified"`
+	IsActive          bool          `json:"isActive"`
+	IsProfileComplete bool          `json:"isProfileComplete"`
+	ProfileImage      string        `json:"profileImage"`
+	CreatedAt         bson.DateTime `json:"createdAt"`
+	UpdatedAt         bson.DateTime `json:"updatedAt"`
 }
 
 type StudentPublicProfile struct {

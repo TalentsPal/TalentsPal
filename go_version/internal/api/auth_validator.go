@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/go-playground/validator/v10"
@@ -193,4 +194,31 @@ func validateInterests(interests []string) (bool, string) {
 		}
 	}
 	return true, ""
+}
+
+func (cfg *AppConfig) refreshTokens(user models.User) (access_token, refresh_token, refresh_token_hashed string, refresh_token_exp time.Time, is_new_refresh_token bool, err error) {
+	jwt_expires_in, err := utils.ParseDurationWithDays(cfg.REQUIREMENTS.JWT.JWTExpiresIn)
+	if err != nil {
+		return "", "", "", time.Time{}, false, utils.NewInternalServerError(err)
+	}
+	access_token, err = utils.GenerateAccessToken(user, cfg.REQUIREMENTS.JWT.JWTSecret, jwt_expires_in)
+	if err != nil {
+		return "", "", "", time.Time{}, false, utils.NewInternalServerError(err)
+	}
+
+	// Validate refresh token
+	if user.RefreshTokenExp.Time().Before(time.Now()) {
+		jwt_refresh_expires_in, err := utils.ParseDurationWithDays(cfg.REQUIREMENTS.JWT.JWTRefreshExpiresIn)
+		if err != nil {
+			return "", "", "", time.Time{}, false, utils.NewInternalServerError(err)
+		}
+		refresh_token_expiration_time := time.Now().Add(jwt_refresh_expires_in)
+		refresh_token, refresh_token_hashed, err := utils.GenerateRefreshToken()
+		if err != nil {
+			return "", "", "", time.Time{}, false, utils.NewInternalServerError(err)
+		}
+		return access_token, refresh_token, refresh_token_hashed, refresh_token_expiration_time, true, nil
+	}
+
+	return access_token, "", "", user.RefreshTokenExp.Time(), false, nil
 }

@@ -11,6 +11,7 @@ type AppRequirements struct {
 	Database   DatabaseRequirements
 	Cloudinary CloudinaryRequirements
 	SMTP       SMTPRequirements
+	JWT        JWTRequirements
 }
 
 type ServerRequirements struct {
@@ -36,6 +37,12 @@ type SMTPRequirements struct {
 	SMTPPass  string
 	EmailFrom string
 	AppName   string
+}
+
+type JWTRequirements struct {
+	JWTSecret           string
+	JWTExpiresIn        string
+	JWTRefreshExpiresIn string
 }
 
 func LoadRequirements() (*AppRequirements, error) {
@@ -79,6 +86,19 @@ func LoadRequirements() (*AppRequirements, error) {
 		return nil, fmt.Errorf("set your 'SMTP_HOST' & 'SMTP_PORT' & 'SMTP_USER' & 'SMTP_PASS & 'EMAIL_FROM' & 'APP_NAME' environment variables")
 	}
 
+	jwt_secret := viper.GetString("JWT_SECRET")
+	jwt_expires_in := viper.GetString("JWT_EXPIRES_IN")
+	jwt_refresh_expires_in := viper.GetString("JWT_REFRESH_EXPIRES_IN")
+	if jwt_secret == "" {
+		return nil, fmt.Errorf("set your 'JWT_SECRET' environment variables")
+	}
+	if jwt_expires_in == "" {
+		jwt_expires_in = "1h"
+	}
+	if jwt_refresh_expires_in == "" {
+		jwt_refresh_expires_in = "30d"
+	}
+
 	requirements := &AppRequirements{
 		Server: ServerRequirements{
 			Port:        server_port,
@@ -100,6 +120,11 @@ func LoadRequirements() (*AppRequirements, error) {
 			SMTPPass:  smtp_pass,
 			EmailFrom: email_from,
 			AppName:   app_name,
+		},
+		JWT: JWTRequirements{
+			JWTSecret:           jwt_secret,
+			JWTExpiresIn:        jwt_expires_in,
+			JWTRefreshExpiresIn: jwt_refresh_expires_in,
 		},
 	}
 

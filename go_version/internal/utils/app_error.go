@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"runtime/debug"
@@ -74,6 +75,7 @@ func NewInternalServerError(err error) *AppError {
 	if err == nil {
 		err = errors.New("internal server error")
 	}
+	log.Printf("internal server error: %s", err.Error())
 	return &AppError{
 		StatusCode: http.StatusInternalServerError,
 		Message:    "Internal Server Error",
