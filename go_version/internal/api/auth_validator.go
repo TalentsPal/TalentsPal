@@ -33,6 +33,10 @@ func sanitizeSignupRequest(body *SignupRequestBody) {
 	}
 }
 
+func sanitizeLoginRequest(body *LoginRequestBody) {
+	body.Email = strings.ToLower(sanitizeInput(body.Email))
+}
+
 func sanitizeInput(value string) string {
 	replacer := strings.NewReplacer("<", "", ">", "")
 	return replacer.Replace(strings.TrimSpace(value))

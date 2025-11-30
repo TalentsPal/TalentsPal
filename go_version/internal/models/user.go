@@ -53,3 +53,5 @@ type User struct {
 	// Version (__v from Node.js)
 	Version int32 `bson:"__v,omitempty"`
 }
+
+// implement get user's profile

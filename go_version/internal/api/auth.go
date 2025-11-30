@@ -13,6 +13,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -55,8 +56,8 @@ func (cfg *AppConfig) SignupHandler(w http.ResponseWriter, r *http.Request) erro
 	// Apply validation tags
 	validator := validator.New(validator.WithRequiredStructEnabled())
 	if err := validator.Struct(req_body); err != nil {
-		fieldErrors := extractValidationErrors(err)
-		return utils.NewValidationError(fieldErrors)
+		field_errors := extractValidationErrors(err)
+		return utils.NewValidationError(field_errors)
 	}
 
 	// Validate email
@@ -219,5 +220,52 @@ type LoginRequestBody struct {
 }
 
 func (cfg *AppConfig) LoginHandler(w http.ResponseWriter, r *http.Request) error {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	req_body := LoginRequestBody{}
+	if err := utils.BodyParser(r.Body, &req_body); err != nil {
+		return utils.NewAppError("Error while parsing login request body", http.StatusBadRequest, err)
+	}
+
+	// Sanitize inputs
+	sanitizeLoginRequest(&req_body)
+
+	// Apply validation tags
+	validator := validator.New(validator.WithRequiredStructEnabled())
+	if err := validator.Struct(req_body); err != nil {
+		field_errors := extractValidationErrors(err)
+		return utils.NewValidationError(field_errors)
+	}
+
+	user_coll := cfg.DATABASE.Collection(models.USERS_COLLECTION)
+
+	// Validate email
+	var user models.User
+	err := user_coll.FindOne(ctx, bson.M{"email": req_body.Email}).Decode(&user)
+	if err == mongo.ErrNoDocuments {
+		return utils.NewAppError("Invalid email or password", http.StatusUnauthorized, nil)
+	} else if err != nil {
+		return utils.NewInternalServerError(err)
+	}
+
+	// Validate password
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req_body.Password))
+	if err != nil {
+		return utils.NewAppError("Invalid email or password", http.StatusUnauthorized, nil)
+	}
+
+	// Check if user is active
+	if !user.IsActive {
+		return utils.NewAppError("Your account has been deactivated", http.StatusUnauthorized, nil)
+	}
+
+	// Check if email is verified
+	if !user.IsEmailVerified {
+		return utils.NewAppError("Please verify your email before logging in. Check your inbox for the verification link.", http.StatusUnauthorized, nil)
+	}
+
+	// Generate token then send the response...
+
 	return nil
 }
