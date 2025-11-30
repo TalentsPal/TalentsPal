@@ -213,6 +213,11 @@ func (cfg *AppConfig) SignupHandler(w http.ResponseWriter, r *http.Request) erro
 	return nil
 }
 
+type LoginRequestBody struct {
+	Email    string `json:"email" validate:"required,email,lowercase"`
+	Password string `json:"password" validate:"required,min=8"`
+}
+
 func (cfg *AppConfig) LoginHandler(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
