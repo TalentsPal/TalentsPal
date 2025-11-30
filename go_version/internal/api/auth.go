@@ -212,3 +212,7 @@ func (cfg *AppConfig) SignupHandler(w http.ResponseWriter, r *http.Request) erro
 
 	return nil
 }
+
+func (cfg *AppConfig) LoginHandler(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
