@@ -185,7 +185,7 @@ func (cfg *AppConfig) SignupHandler(w http.ResponseWriter, r *http.Request) erro
 		return utils.NewInternalServerError(err)
 	}
 	error_chan := make(chan error)
-	go utils.SendVerificationEmail(error_chan, cfg.REQUIREMENTS.SMTP.AppName, cfg.REQUIREMENTS.SMTP.EmailFrom, req_body.Email, cfg.REQUIREMENTS.Server.FrontendURL, verification_token, req_body.FullName, cfg.REQUIREMENTS.SMTP.SMTPHost, cfg.REQUIREMENTS.SMTP.SMTPUser, cfg.REQUIREMENTS.SMTP.SMTPPass, smtp_port)
+	go utils.SendVerificationEmail(error_chan, cfg.REQUIREMENTS.SMTP.AppName, cfg.REQUIREMENTS.SMTP.EmailFrom, req_body.Email, cfg.REQUIREMENTS.Server.BackendURL, verification_token, req_body.FullName, cfg.REQUIREMENTS.SMTP.SMTPHost, cfg.REQUIREMENTS.SMTP.SMTPUser, cfg.REQUIREMENTS.SMTP.SMTPPass, smtp_port)
 	go func() {
 		if err := <-error_chan; err != nil {
 			// log it and move on
