@@ -2,8 +2,10 @@ package api
 
 import (
 	"context"
+	"go_version/internal/models"
 	"go_version/internal/utils"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -107,12 +109,7 @@ func isValidPhoneNumber(phone, countryCode string) (bool, string) {
 }
 
 func isValidRole(role string) bool {
-	switch role {
-	case "student", "company", "admin":
-		return true
-	default:
-		return false
-	}
+	return slices.Contains(models.GetValidRoles(), role)
 }
 
 func isValidYear(year string) (bool, string) {
