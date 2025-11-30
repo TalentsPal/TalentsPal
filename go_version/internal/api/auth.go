@@ -240,8 +240,6 @@ func (cfg *AppConfig) LoginHandler(w http.ResponseWriter, r *http.Request) error
 
 	user_coll := cfg.DATABASE.Collection(models.USERS_COLLECTION)
 
-	log.Printf("hello1")
-
 	// Validate email
 	var user models.User
 	err := user_coll.FindOne(ctx, bson.M{"email": req_body.Email}).Decode(&user)
@@ -251,8 +249,6 @@ func (cfg *AppConfig) LoginHandler(w http.ResponseWriter, r *http.Request) error
 	} else if err != nil {
 		return utils.NewInternalServerError(err)
 	}
-
-	log.Printf("hello2")
 
 	// Validate password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req_body.Password))
