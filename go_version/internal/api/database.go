@@ -26,7 +26,7 @@ func (cfg *AppConfig) connectDB(uri string) error {
 		return fmt.Errorf("failed to ping MongoDB: %w", err)
 	}
 
-	cfg.DATABASE = client.Database("talentspal")
+	cfg.DATABASE = client.Database("talentspal_db")
 
 	return nil
 }

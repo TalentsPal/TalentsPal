@@ -10,6 +10,7 @@ type AppRequirements struct {
 	Server     ServerRequirements
 	Database   DatabaseRequirements
 	Cloudinary CloudinaryRequirements
+	SMTP       SMTPRequirements
 }
 
 type ServerRequirements struct {
@@ -26,6 +27,15 @@ type CloudinaryRequirements struct {
 	CloudName string
 	APIKey    string
 	APISecret string
+}
+
+type SMTPRequirements struct {
+	SMTPHost  string
+	SMTPPort  string
+	SMTPUser  string
+	SMTPPass  string
+	EmailFrom string
+	AppName   string
 }
 
 func LoadRequirements() (*AppRequirements, error) {
@@ -59,6 +69,16 @@ func LoadRequirements() (*AppRequirements, error) {
 		return nil, fmt.Errorf("set your 'PORT' & 'BACKEND_URL' & 'FRONTEND_URL' environment variables")
 	}
 
+	smtp_host := viper.GetString("SMTP_HOST")
+	smtp_port := viper.GetString("SMTP_PORT")
+	smtp_user := viper.GetString("SMTP_USER")
+	smtp_pass := viper.GetString("SMTP_PASS")
+	email_from := viper.GetString("EMAIL_FROM")
+	app_name := viper.GetString("APP_NAME")
+	if smtp_host == "" || smtp_port == "" || smtp_user == "" || smtp_pass == "" || email_from == "" || app_name == "" {
+		return nil, fmt.Errorf("set your 'SMTP_HOST' & 'SMTP_PORT' & 'SMTP_USER' & 'SMTP_PASS & 'EMAIL_FROM' & 'APP_NAME' environment variables")
+	}
+
 	requirements := &AppRequirements{
 		Server: ServerRequirements{
 			Port:        server_port,
@@ -72,6 +92,14 @@ func LoadRequirements() (*AppRequirements, error) {
 			CloudName: cloud_name,
 			APIKey:    api_key,
 			APISecret: api_secret,
+		},
+		SMTP: SMTPRequirements{
+			SMTPHost:  smtp_host,
+			SMTPPort:  smtp_port,
+			SMTPUser:  smtp_user,
+			SMTPPass:  smtp_pass,
+			EmailFrom: email_from,
+			AppName:   app_name,
 		},
 	}
 

@@ -2,6 +2,8 @@ package models
 
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
+const USERS_COLLECTION = "users"
+
 type User struct {
 	ID primitive.ObjectID `bson:"_id,omitempty"`
 

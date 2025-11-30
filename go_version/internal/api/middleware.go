@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"go_version/utils"
+	"go_version/internal/utils"
 )
 
 // HandlerFunc defines the signature Go handlers should implement so we can

@@ -6,17 +6,18 @@ import (
 )
 
 type AppConfig struct {
-	DATABASE   *mongo.Database
-	CLOUDINARY *cloudinary.Cloudinary
+	DATABASE     *mongo.Database
+	CLOUDINARY   *cloudinary.Cloudinary
+	REQUIREMENTS *AppRequirements
 }
 
-func (cfg *AppConfig) LoadConfig(requirements *AppRequirements) error {
-	err := cfg.connectDB(requirements.Database.MongoURI)
+func (cfg *AppConfig) LoadConfig() error {
+	err := cfg.connectDB(cfg.REQUIREMENTS.Database.MongoURI)
 	if err != nil {
 		return err
 	}
 
-	err = cfg.initCloudinary(requirements.Cloudinary.CloudName, requirements.Cloudinary.APIKey, requirements.Cloudinary.APISecret)
+	err = cfg.initCloudinary(cfg.REQUIREMENTS.Cloudinary.CloudName, cfg.REQUIREMENTS.Cloudinary.APIKey, cfg.REQUIREMENTS.Cloudinary.APISecret)
 	if err != nil {
 		return err
 	}

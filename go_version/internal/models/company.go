@@ -2,6 +2,8 @@ package models
 
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
+const COMPANIES_COLLECTION = "companies"
+
 type Company struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty"`
 	Name       string             `bson:"name,omitempty"`

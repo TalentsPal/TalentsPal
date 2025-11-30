@@ -18,8 +18,10 @@ func main() {
 		log.Fatal("error while loading app requirements: " + err.Error())
 	}
 
-	app_config := api.AppConfig{}
-	err = app_config.LoadConfig(app_requirements)
+	app_config := api.AppConfig{
+		REQUIREMENTS: app_requirements,
+	}
+	err = app_config.LoadConfig()
 	if err != nil {
 		log.Fatal("error while loading app configs: " + err.Error())
 	}
