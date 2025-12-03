@@ -420,3 +420,7 @@ func (cfg *AppConfig) GetUserProfile(w http.ResponseWriter, r *http.Request) err
 
 	return nil
 }
+
+func (cfg *AppConfig) UpdateUserProfile(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
