@@ -637,6 +637,11 @@ func (cfg *AppConfig) UpdateUserProfile(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
+type ChangePasswordRequestBody struct {
+	CurrentPassword string `json:"currentPassword" validate:"required"`
+	NewPassword     string `json:"newPassword" validate:"required,min=8"`
+}
+
 func (cfg *AppConfig) ChangePassword(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
