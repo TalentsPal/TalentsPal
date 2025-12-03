@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"go_version/internal/models"
@@ -22,7 +23,7 @@ type SignupRequestBody struct {
 	FullName        string   `json:"fullName" validate:"required,min=2,max=100"`
 	Email           string   `json:"email" validate:"required,email,lowercase"`
 	Password        string   `json:"password" validate:"required,min=8"`
-	ConfirmPassword string   `json:"confirmPassword" validate:"required,eqfield=password"`
+	ConfirmPassword string   `json:"confirmPassword" validate:"required,eqfield=Password"`
 	Role            string   `json:"role" validate:"omitempty,oneof=student company admin"`
 	CountryCode     string   `json:"countryCode" validate:"required"`
 	Phone           string   `json:"phone" validate:"required,numeric"`
@@ -153,7 +154,7 @@ func (cfg *AppConfig) SignupHandler(w http.ResponseWriter, r *http.Request) erro
 	if err != nil {
 		return utils.NewInternalServerError(err)
 	}
-	verificationExpires := time.Now().Add(24 * time.Hour)
+	verification_expires := time.Now().Add(24 * time.Hour)
 
 	now := time.Now()
 	user_doc := models.User{
@@ -174,7 +175,7 @@ func (cfg *AppConfig) SignupHandler(w http.ResponseWriter, r *http.Request) erro
 		Industry:                 req_body.Industry,
 		Description:              req_body.Description,
 		EmailVerificationToken:   verification_token,
-		EmailVerificationExpires: bson.NewDateTimeFromTime(verificationExpires),
+		EmailVerificationExpires: bson.NewDateTimeFromTime(verification_expires),
 		IsEmailVerified:          false,
 		IsProfileComplete:        false,
 		IsActive:                 true,
@@ -328,6 +329,11 @@ func (cfg *AppConfig) VerifyEmailHandler(w http.ResponseWriter, r *http.Request)
 		return utils.NewAppError("Invalid or expired verification token", http.StatusBadRequest, nil)
 	} else if err != nil {
 		return utils.NewInternalServerError(err)
+	}
+
+	// Check if user is active
+	if !user.IsActive {
+		return utils.NewAppError("Your account has been deactivated", http.StatusUnauthorized, nil)
 	}
 
 	updated_user := bson.M{
@@ -610,7 +616,7 @@ func (cfg *AppConfig) UpdateUserProfile(w http.ResponseWriter, r *http.Request) 
 type ChangePasswordRequestBody struct {
 	CurrentPassword string `json:"currentPassword" validate:"required"`
 	NewPassword     string `json:"newPassword" validate:"required,min=8"`
-	ConfirmPassword string `json:"confirmPassword" validate:"required,eqfield=newPassword"`
+	ConfirmPassword string `json:"confirmPassword" validate:"required,eqfield=NewPassword"`
 }
 
 func (cfg *AppConfig) ChangePassword(w http.ResponseWriter, r *http.Request) error {
@@ -625,6 +631,13 @@ func (cfg *AppConfig) ChangePassword(w http.ResponseWriter, r *http.Request) err
 	req_body := ChangePasswordRequestBody{}
 	if err := utils.BodyParser(r.Body, &req_body); err != nil {
 		return utils.NewAppError("Error while parsing change password request body", http.StatusBadRequest, err)
+	}
+
+	// Apply validation tags
+	validator := validator.New(validator.WithRequiredStructEnabled())
+	if err := validator.Struct(req_body); err != nil {
+		field_errors := extractValidationErrors(err)
+		return utils.NewValidationError(field_errors)
 	}
 
 	// Validate password
@@ -654,7 +667,6 @@ func (cfg *AppConfig) ChangePassword(w http.ResponseWriter, r *http.Request) err
 
 	updated_user["password"] = hashed_password
 	updated_user["updatedAt"] = bson.NewDateTimeFromTime(time.Now())
-	user.UpdatedAt = bson.NewDateTimeFromTime(time.Now())
 
 	// Perform the update
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
@@ -669,20 +681,104 @@ func (cfg *AppConfig) ChangePassword(w http.ResponseWriter, r *http.Request) err
 		return utils.NewInternalServerError(err)
 	}
 
-	response_payload := map[string]any{
-		"user": user.GetPublicProfile(),
-	}
-
 	utils.SuccessResponseWriter(
 		w,
 		"Password changed successfully",
-		response_payload,
+		nil,
 		http.StatusOK,
 	)
 
 	return nil
 }
 
+type ResendVerificationRequestBody struct {
+	Email string `json:"email" validate:"required,email,lowercase"`
+}
+
 func (cfg *AppConfig) ResendVerification(w http.ResponseWriter, r *http.Request) error {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	req_body := ResendVerificationRequestBody{}
+	if err := utils.BodyParser(r.Body, &req_body); err != nil {
+		return utils.NewAppError("Error while parsing change password request body", http.StatusBadRequest, err)
+	}
+
+	// Sanitize input
+	req_body.Email = strings.ToLower(sanitizeInput(req_body.Email))
+
+	// Apply validation tags
+	validator := validator.New(validator.WithRequiredStructEnabled())
+	if err := validator.Struct(req_body); err != nil {
+		field_errors := extractValidationErrors(err)
+		return utils.NewValidationError(field_errors)
+	}
+
+	if req_body.Email == "" {
+		return utils.NewAppError("Email is required", http.StatusBadRequest, nil)
+	}
+
+	user_coll := cfg.DATABASE.Collection(models.USERS_COLLECTION)
+
+	// Validate email
+	var user models.User
+	err := user_coll.FindOne(ctx, bson.M{"email": req_body.Email}).Decode(&user)
+	if err == mongo.ErrNoDocuments {
+		return utils.NewAppError("No account found with this email", http.StatusNotFound, nil)
+	} else if err != nil {
+		return utils.NewInternalServerError(err)
+	}
+
+	// Check if user is active
+	if !user.IsActive {
+		return utils.NewAppError("Your account has been deactivated", http.StatusUnauthorized, nil)
+	}
+
+	// Check if email is already verified
+	if user.IsEmailVerified {
+		return utils.NewAppError("Email is already verified", http.StatusBadRequest, nil)
+	}
+
+	verification_token, err := utils.GenerateVerificationToken()
+	if err != nil {
+		return utils.NewInternalServerError(err)
+	}
+	verification_expires := time.Now().Add(24 * time.Hour)
+
+	updated_user := bson.M{}
+	updated_user["emailVerificationToken"] = verification_token
+	updated_user["emailVerificationExpires"] = bson.NewDateTimeFromTime(verification_expires)
+	updated_user["updatedAt"] = bson.NewDateTimeFromTime(time.Now())
+
+	// Perform the update
+	_, err = user_coll.UpdateOne(
+		ctx,
+		bson.M{"_id": user.ID},
+		bson.M{"$set": updated_user},
+	)
+	if err != nil {
+		return utils.NewInternalServerError(err)
+	}
+
+	smtp_port, err := strconv.Atoi(cfg.REQUIREMENTS.SMTP.SMTPPort)
+	if err != nil {
+		return utils.NewInternalServerError(err)
+	}
+	error_chan := make(chan error)
+	go utils.SendVerificationEmail(error_chan, cfg.REQUIREMENTS.SMTP.AppName, cfg.REQUIREMENTS.SMTP.EmailFrom, req_body.Email, cfg.REQUIREMENTS.Server.FrontendURL, verification_token, user.FullName, cfg.REQUIREMENTS.SMTP.SMTPHost, cfg.REQUIREMENTS.SMTP.SMTPUser, cfg.REQUIREMENTS.SMTP.SMTPPass, smtp_port)
+	go func() {
+		if err := <-error_chan; err != nil {
+			// log it and move on
+			log.Printf("Failed to send verification email: %s", err.Error())
+		}
+	}()
+
+	utils.SuccessResponseWriter(
+		w,
+		"Verification email sent successfully. Please check your inbox.",
+		nil,
+		http.StatusOK,
+	)
+
 	return nil
 }
