@@ -94,28 +94,34 @@ func (cfg *AppConfig) SignupHandler(w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
-	// Validate university
-	universities_coll := cfg.DATABASE.Collection(models.UNIVERSITIES_COLLECTION)
-	if err := valueFoundInDatabase(ctx, universities_coll, "name", req_body.University); err != nil {
-		return err
-	}
-
-	// Validate major
-	majors_coll := cfg.DATABASE.Collection(models.MAJORS_COLLECTION)
-	if err := valueFoundInDatabase(ctx, majors_coll, "name", req_body.Major); err != nil {
-		return err
-	}
-
-	// Validate graduation year if provided
-	if req_body.GraduationYear != "" {
-		if valid, message := isValidYear(req_body.GraduationYear); !valid {
-			return utils.NewAppError(message, http.StatusBadRequest, nil)
+	// If role is student, validate other student-related fields
+	if req_body.Role == "student" {
+		// Validate university
+		universities_coll := cfg.DATABASE.Collection(models.UNIVERSITIES_COLLECTION)
+		if err := valueFoundInDatabase(ctx, universities_coll, "name", req_body.University); err != nil {
+			return err
 		}
-	}
 
-	if len(req_body.Interests) != 0 {
-		if valid, message := validateInterests(req_body.Interests); !valid {
-			return utils.NewAppError(message, http.StatusBadRequest, nil)
+		// Validate major
+		majors_coll := cfg.DATABASE.Collection(models.MAJORS_COLLECTION)
+		if err := valueFoundInDatabase(ctx, majors_coll, "name", req_body.Major); err != nil {
+			return err
+		}
+
+		// Validate graduation year if provided
+		if req_body.GraduationYear != "" {
+			if valid, message := isValidYear(req_body.GraduationYear); !valid {
+				return utils.NewAppError(message, http.StatusBadRequest, nil)
+			}
+		}
+
+		// Validate interests
+		if len(req_body.Interests) != 0 {
+			valid, unique_interests, message := validateInterests(req_body.Interests)
+			if !valid {
+				return utils.NewAppError(message, http.StatusBadRequest, nil)
+			}
+			req_body.Interests = unique_interests
 		}
 	}
 
@@ -421,6 +427,216 @@ func (cfg *AppConfig) GetUserProfile(w http.ResponseWriter, r *http.Request) err
 	return nil
 }
 
+type UpdateUserProfileRequestBody struct {
+	FullName       string   `json:"fullName" validate:"omitempty,min=2,max=100"`
+	CountryCode    string   `json:"countryCode" validate:"omitempty"`
+	Phone          string   `json:"phone" validate:"omitempty,numeric"`
+	City           string   `json:"city" validate:"omitempty,min=2,max=50"`
+	ProfileImage   string   `json:"profileImage" validate:"omitempty,url"`
+	LinkedInURL    string   `json:"linkedInUrl" validate:"omitempty,url"`
+	University     string   `json:"university" validate:"omitempty,min=2,max=100"`
+	Major          string   `json:"major" validate:"omitempty,min=2,max=50"`
+	GraduationYear string   `json:"graduationYear" validate:"omitempty"`
+	Interests      []string `json:"interests"`
+	Bio            string   `json:"bio" validate:"omitempty,min=30,max=500"`
+
+	// company specific field
+	CompanyName     string `json:"companyName"`
+	CompanyLocation string `json:"companyLocation"`
+	Industry        string `json:"industry"`
+	Description     string `json:"description"`
+}
+
 func (cfg *AppConfig) UpdateUserProfile(w http.ResponseWriter, r *http.Request) error {
+	updated_user := bson.M{}
+
+	ctx_user_id := r.Context().Value(CtxUserID)
+	if ctx_user_id == nil {
+		return utils.NewAppError("user id not found in context", http.StatusUnauthorized, nil)
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	user_coll := cfg.DATABASE.Collection(models.USERS_COLLECTION)
+
+	// Find user by id
+	var user models.User
+	user_id, ok := ctx_user_id.(bson.ObjectID)
+	if !ok {
+		return utils.NewInternalServerError(errors.New("user id found in context is not bson.ObjectID (invalid type)"))
+	}
+	err := user_coll.FindOne(ctx, bson.M{"_id": user_id}).Decode(&user)
+	if err == mongo.ErrNoDocuments {
+		return utils.NewAppError("User not found", http.StatusNotFound, nil)
+	} else if err != nil {
+		return utils.NewInternalServerError(err)
+	}
+
+	req_body := UpdateUserProfileRequestBody{}
+	if err := utils.BodyParser(r.Body, &req_body); err != nil {
+		return utils.NewAppError("Error while parsing update user's profile request body", http.StatusBadRequest, err)
+	}
+
+	// Sanitize inputs
+	sanitizeUpdateUserProfileRequest(&req_body)
+
+	// Apply validation tags
+	validator := validator.New(validator.WithRequiredStructEnabled())
+	if err := validator.Struct(req_body); err != nil {
+		field_errors := extractValidationErrors(err)
+		return utils.NewValidationError(field_errors)
+	}
+
+	if req_body.FullName != "" {
+		updated_user["fullName"] = req_body.FullName
+		user.FullName = req_body.FullName
+	}
+	if req_body.ProfileImage != "" {
+		updated_user["profileImage"] = req_body.ProfileImage
+		user.ProfileImage = req_body.ProfileImage
+	}
+
+	// Validate phone number with country code if provided
+	if req_body.Phone != "" && req_body.CountryCode != "" {
+		if valid, message := isValidPhoneNumber(req_body.Phone, req_body.CountryCode); !valid {
+			return utils.NewAppError(message, http.StatusBadRequest, nil)
+		}
+		updated_user["phone"] = req_body.Phone
+		user.Phone = req_body.Phone
+	}
+
+	// Validate city if provided
+	if req_body.City != "" {
+		cities_coll := cfg.DATABASE.Collection(models.CITIES_COLLECTION)
+		if err := valueFoundInDatabase(ctx, cities_coll, "name", req_body.City); err != nil {
+			return err
+		}
+		updated_user["city"] = req_body.City
+		user.City = req_body.City
+	}
+
+	// If role is user, validate other user-related fields
+	if user.Role == "student" {
+		// Validate university if provided
+		if req_body.University != "" {
+			universities_coll := cfg.DATABASE.Collection(models.UNIVERSITIES_COLLECTION)
+			if err := valueFoundInDatabase(ctx, universities_coll, "name", req_body.University); err != nil {
+				return err
+			}
+			updated_user["university"] = req_body.University
+			user.University = req_body.University
+		}
+
+		// Validate major if provided
+		if req_body.Major != "" {
+			majors_coll := cfg.DATABASE.Collection(models.MAJORS_COLLECTION)
+			if err := valueFoundInDatabase(ctx, majors_coll, "name", req_body.Major); err != nil {
+				return err
+			}
+			updated_user["major"] = req_body.Major
+			user.Major = req_body.Major
+		}
+
+		// Validate graduation year if provided
+		if req_body.GraduationYear != "" {
+			if valid, message := isValidYear(req_body.GraduationYear); !valid {
+				return utils.NewAppError(message, http.StatusBadRequest, nil)
+			}
+			updated_user["graduationYear"] = req_body.GraduationYear
+			user.GraduationYear = req_body.GraduationYear
+		}
+
+		// Validate interests
+		if len(req_body.Interests) != 0 {
+			valid, unique_interests, message := validateInterests(req_body.Interests)
+			if !valid {
+				return utils.NewAppError(message, http.StatusBadRequest, nil)
+			}
+			req_body.Interests = unique_interests
+			updated_user["interests"] = req_body.Interests
+			user.Interests = req_body.Interests
+		}
+
+		if req_body.Bio != "" {
+			updated_user["bio"] = req_body.Bio
+			user.Bio = req_body.Bio
+		}
+	}
+
+	// If role is company, validate other company-related fields
+	if user.Role == "company" {
+		if req_body.Industry != "" {
+			industries_coll := cfg.DATABASE.Collection(models.INDUSTRIES_COLLECTION)
+			if err := valueFoundInDatabase(ctx, industries_coll, "name", req_body.Industry); err != nil {
+				return err
+			}
+			updated_user["industry"] = req_body.Industry
+			user.Industry = req_body.Industry
+		}
+
+		if req_body.CompanyName != "" {
+			if !validateStringLength(req_body.CompanyName, 2, 50) {
+				return utils.NewAppError("Company name must be between 2 & 50 characters", http.StatusBadRequest, nil)
+			}
+			updated_user["companyName"] = req_body.CompanyName
+			user.CompanyName = req_body.CompanyName
+		}
+
+		if req_body.CompanyLocation != "" {
+			if !validateStringLength(req_body.CompanyLocation, 2, 100) {
+				return utils.NewAppError("Company location must be between 2 & 100 characters", http.StatusBadRequest, nil)
+			}
+			updated_user["companyLocation"] = req_body.CompanyLocation
+			user.CompanyLocation = req_body.CompanyLocation
+		}
+
+		if req_body.Bio != "" {
+			updated_user["description"] = req_body.Description
+			user.Description = req_body.Description
+		}
+	}
+
+	// Ensure at least one field was updated
+	if len(updated_user) == 0 {
+		return utils.NewAppError("No fields provided to update", http.StatusBadRequest, nil)
+	}
+
+	if user.FullName != "" && user.Email != "" && user.Role != "" && user.Phone != "" && user.City != "" && user.ProfileImage != "" {
+		switch user.Role {
+		case "student":
+			if user.LinkedInURL != "" && user.University != "" && user.Major != "" && user.GraduationYear != "" && len(user.Interests) != 0 && user.Bio != "" {
+				updated_user["isProfileComplete"] = true
+				user.IsProfileComplete = true
+			}
+		case "company":
+			if user.CompanyName != "" && user.CompanyLocation != "" && user.CompanyEmail != "" && user.Industry != "" && user.Description != "" {
+				updated_user["isProfileComplete"] = true
+				user.IsProfileComplete = true
+			}
+		}
+	}
+
+	// Perform the update
+	_, err = user_coll.UpdateOne(
+		ctx,
+		bson.M{"_id": user_id},
+		bson.M{"$set": updated_user},
+	)
+	if err != nil {
+		return utils.NewInternalServerError(err)
+	}
+
+	response_payload := map[string]any{
+		"user": user.GetPublicProfile(),
+	}
+
+	utils.SuccessResponseWriter(
+		w,
+		"Profile updated successfully",
+		response_payload,
+		http.StatusOK,
+	)
+
 	return nil
 }

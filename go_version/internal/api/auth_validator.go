@@ -5,6 +5,7 @@ import (
 	"go_version/internal/models"
 	"go_version/internal/utils"
 	"net/http"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,11 +16,13 @@ import (
 	"github.com/nyaruka/phonenumbers"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"golang.org/x/text/unicode/norm"
 )
 
 func sanitizeSignupRequest(body *SignupRequestBody) {
 	body.FullName = sanitizeInput(body.FullName)
 	body.Email = strings.ToLower(sanitizeInput(body.Email))
+	body.Role = strings.ToLower(strings.TrimSpace(body.Role))
 	body.CountryCode = strings.ToUpper(strings.TrimSpace(body.CountryCode))
 	body.Phone = sanitizeInput(body.Phone)
 	body.City = sanitizeInput(body.City)
@@ -40,9 +43,54 @@ func sanitizeLoginRequest(body *LoginRequestBody) {
 	body.Email = strings.ToLower(sanitizeInput(body.Email))
 }
 
+func sanitizeUpdateUserProfileRequest(body *UpdateUserProfileRequestBody) {
+	body.FullName = sanitizeInput(body.FullName)
+	body.CountryCode = strings.ToUpper(strings.TrimSpace(body.CountryCode))
+	body.Phone = sanitizeInput(body.Phone)
+	body.City = sanitizeInput(body.City)
+	body.ProfileImage = strings.TrimSpace(body.ProfileImage)
+	body.LinkedInURL = strings.TrimSpace(body.LinkedInURL)
+	body.University = sanitizeInput(body.University)
+	body.Major = sanitizeInput(body.Major)
+	for i, interest := range body.Interests {
+		body.Interests[i] = sanitizeInput(interest)
+	}
+	body.Bio = sanitizeInput(body.Bio)
+}
+
+var (
+	reHTML         = regexp.MustCompile(`(?i)<[^>]*>`)
+	reProto        = regexp.MustCompile(`(?i)javascript\s*:`)
+	invisibleRunes = map[rune]bool{
+		'\u200B': true, '\u200C': true, '\u200D': true,
+		'\u202A': true, '\u202B': true, '\u202D': true,
+		'\u202E': true, '\u2066': true, '\u2067': true,
+		'\u2068': true, '\u2069': true,
+	}
+)
+
 func sanitizeInput(value string) string {
-	replacer := strings.NewReplacer("<", "", ">", "")
-	return replacer.Replace(strings.TrimSpace(value))
+	// Normalize unicode
+	value = norm.NFKC.String(value)
+
+	// Strip HTML tags
+	value = reHTML.ReplaceAllString(value, "")
+
+	// Remove javascript: protocol
+	value = reProto.ReplaceAllString(value, "")
+
+	// Strip invisible or bidi control characters
+	value = strings.Map(func(r rune) rune {
+		if invisibleRunes[r] {
+			return -1
+		}
+		if unicode.IsControl(r) && r != '\n' && r != '\t' {
+			return -1
+		}
+		return r
+	}, value)
+
+	return strings.TrimSpace(value)
 }
 
 func validatePasswordComplexity(password string) (bool, string) {
@@ -187,13 +235,20 @@ func validateStringLength(value string, min, max int) bool {
 	return (len(value) >= min && len(value) <= max)
 }
 
-func validateInterests(interests []string) (bool, string) {
+func validateInterests(interests []string) (valid bool, unique_interests []string, message string) {
+	seen := make(map[string]bool)
+	unique_interests = []string{}
+
 	for _, i := range interests {
-		if !validateStringLength(i, 2, 50) {
-			return false, "An interest should be between 2 & 50 character"
+		if _, ok := seen[i]; !ok {
+			seen[i] = true
+			unique_interests = append(unique_interests, i)
+			if !validateStringLength(i, 2, 50) {
+				return false, []string{}, "An interest should be between 2 & 50 character"
+			}
 		}
 	}
-	return true, ""
+	return true, unique_interests, ""
 }
 
 func (cfg *AppConfig) refreshTokens(user models.User) (access_token, refresh_token, refresh_token_hashed string, refresh_token_exp time.Time, is_new_refresh_token bool, err error) {

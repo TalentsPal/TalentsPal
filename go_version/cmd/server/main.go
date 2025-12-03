@@ -47,7 +47,7 @@ func main() {
 		r.Post("/login", app_config.Handle(app_config.LoginHandler))
 		r.Get("/verify-email/{token}", app_config.Handle(app_config.VerifyEmailHandler))
 		r.Get("/me", app_config.Handle(app_config.MiddlewareAuthorize(app_config.GetUserProfile)))
-		r.Get("/update-profile", app_config.Handle(app_config.MiddlewareAuthorize(app_config.UpdateUserProfile)))
+		r.Put("/update-profile", app_config.Handle(app_config.MiddlewareAuthorize(app_config.UpdateUserProfile)))
 	})
 
 	srv := &http.Server{
