@@ -610,6 +610,8 @@ func (cfg *AppConfig) UpdateUserProfile(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	updated_user["updatedAt"] = bson.NewDateTimeFromTime(time.Now())
+
 	// Perform the update
 	_, err = user_coll.UpdateOne(
 		ctx,
