@@ -4,8 +4,13 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
+	"go_version/internal/models"
 	"go_version/internal/utils"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 // HandlerFunc defines the signature Go handlers should implement so we can
@@ -35,6 +40,7 @@ func (cfg *AppConfig) respondWithError(w http.ResponseWriter, err error) {
 type ctxKey string
 
 const CtxUserID ctxKey = "user_id"
+const CtxUser ctxKey = "user"
 
 func (cfg *AppConfig) MiddlewareAuthorize(next func(w http.ResponseWriter, r *http.Request) error) func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
@@ -48,8 +54,23 @@ func (cfg *AppConfig) MiddlewareAuthorize(next func(w http.ResponseWriter, r *ht
 			return utils.NewAppError(err.Error(), http.StatusUnauthorized, nil)
 		}
 
-		ctx := context.WithValue(r.Context(), CtxUserID, user_id)
-		err = next(w, r.WithContext(ctx))
+		db_ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+
+		user_coll := cfg.DATABASE.Collection(models.USERS_COLLECTION)
+
+		// Find user by id
+		var user models.User
+		err = user_coll.FindOne(db_ctx, bson.M{"_id": user_id}).Decode(&user)
+		if err == mongo.ErrNoDocuments {
+			return utils.NewAppError("User not found", http.StatusNotFound, nil)
+		} else if err != nil {
+			return utils.NewInternalServerError(err)
+		}
+
+		req_ctx := context.WithValue(r.Context(), CtxUserID, user_id)
+		req_ctx = context.WithValue(req_ctx, CtxUser, user)
+		err = next(w, r.WithContext(req_ctx))
 		if err != nil {
 			return err
 		}

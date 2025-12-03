@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"go_version/internal/models"
 	"go_version/internal/utils"
 	"net/http"
@@ -14,7 +15,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/nyaruka/phonenumbers"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"golang.org/x/text/unicode/norm"
 )
@@ -276,4 +277,25 @@ func (cfg *AppConfig) refreshTokens(user models.User) (access_token, refresh_tok
 	}
 
 	return access_token, "", "", user.RefreshTokenExp.Time(), false, nil
+}
+
+func getUserFromContext(ctx context.Context) (bson.ObjectID, models.User, error) {
+	ctx_user_id := ctx.Value(CtxUserID)
+	ctx_user := ctx.Value(CtxUser)
+
+	if ctx_user_id == nil || ctx_user == nil {
+		return bson.ObjectID{}, models.User{}, errors.New("user or user id not found in context")
+	}
+
+	user_id, ok := ctx_user_id.(bson.ObjectID)
+	if !ok {
+		return bson.ObjectID{}, models.User{}, errors.New("user id found in context is not bson.ObjectID (invalid type)")
+	}
+
+	user, ok := ctx_user.(models.User)
+	if !ok {
+		return bson.ObjectID{}, models.User{}, errors.New("user found in context is not models.User (invalid type)")
+	}
+
+	return user_id, user, nil
 }

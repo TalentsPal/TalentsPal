@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -23,7 +22,7 @@ type SignupRequestBody struct {
 	FullName        string   `json:"fullName" validate:"required,min=2,max=100"`
 	Email           string   `json:"email" validate:"required,email,lowercase"`
 	Password        string   `json:"password" validate:"required,min=8"`
-	ConfirmPassword string   `json:"confirmPassword" validate:"required,eqfield=Password"`
+	ConfirmPassword string   `json:"confirmPassword" validate:"required,eqfield=password"`
 	Role            string   `json:"role" validate:"omitempty,oneof=student company admin"`
 	CountryCode     string   `json:"countryCode" validate:"required"`
 	Phone           string   `json:"phone" validate:"required,numeric"`
@@ -383,27 +382,10 @@ func (cfg *AppConfig) VerifyEmailHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (cfg *AppConfig) GetUserProfile(w http.ResponseWriter, r *http.Request) error {
-	ctx_user_id := r.Context().Value(CtxUserID)
-	if ctx_user_id == nil {
-		return utils.NewAppError("user id not found in context", http.StatusUnauthorized, nil)
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
-	user_coll := cfg.DATABASE.Collection(models.USERS_COLLECTION)
-
-	// Find user by id
-	var user models.User
-	user_id, ok := ctx_user_id.(bson.ObjectID)
-	if !ok {
-		return utils.NewInternalServerError(errors.New("user id found in context is not bson.ObjectID (invalid type)"))
-	}
-	err := user_coll.FindOne(ctx, bson.M{"_id": user_id}).Decode(&user)
-	if err == mongo.ErrNoDocuments {
-		return utils.NewAppError("User not found", http.StatusNotFound, nil)
-	} else if err != nil {
-		return utils.NewInternalServerError(err)
+	// Extract user_id and user from req context
+	_, user, err := getUserFromContext(r.Context())
+	if err != nil {
+		return utils.NewAppError(err.Error(), http.StatusUnauthorized, nil)
 	}
 
 	response_payload := map[string]any{
@@ -443,28 +425,16 @@ type UpdateUserProfileRequestBody struct {
 func (cfg *AppConfig) UpdateUserProfile(w http.ResponseWriter, r *http.Request) error {
 	updated_user := bson.M{}
 
-	ctx_user_id := r.Context().Value(CtxUserID)
-	if ctx_user_id == nil {
-		return utils.NewAppError("user id not found in context", http.StatusUnauthorized, nil)
+	// Extract user_id and user from req context
+	user_id, user, err := getUserFromContext(r.Context())
+	if err != nil {
+		return utils.NewAppError(err.Error(), http.StatusUnauthorized, nil)
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
 	user_coll := cfg.DATABASE.Collection(models.USERS_COLLECTION)
-
-	// Find user by id
-	var user models.User
-	user_id, ok := ctx_user_id.(bson.ObjectID)
-	if !ok {
-		return utils.NewInternalServerError(errors.New("user id found in context is not bson.ObjectID (invalid type)"))
-	}
-	err := user_coll.FindOne(ctx, bson.M{"_id": user_id}).Decode(&user)
-	if err == mongo.ErrNoDocuments {
-		return utils.NewAppError("User not found", http.StatusNotFound, nil)
-	} else if err != nil {
-		return utils.NewInternalServerError(err)
-	}
 
 	req_body := UpdateUserProfileRequestBody{}
 	if err := utils.BodyParser(r.Body, &req_body); err != nil {
@@ -640,8 +610,75 @@ func (cfg *AppConfig) UpdateUserProfile(w http.ResponseWriter, r *http.Request) 
 type ChangePasswordRequestBody struct {
 	CurrentPassword string `json:"currentPassword" validate:"required"`
 	NewPassword     string `json:"newPassword" validate:"required,min=8"`
+	ConfirmPassword string `json:"confirmPassword" validate:"required,eqfield=newPassword"`
 }
 
 func (cfg *AppConfig) ChangePassword(w http.ResponseWriter, r *http.Request) error {
+	updated_user := bson.M{}
+
+	// Extract user_id and user from req context
+	_, user, err := getUserFromContext(r.Context())
+	if err != nil {
+		return utils.NewAppError(err.Error(), http.StatusUnauthorized, nil)
+	}
+
+	req_body := ChangePasswordRequestBody{}
+	if err := utils.BodyParser(r.Body, &req_body); err != nil {
+		return utils.NewAppError("Error while parsing change password request body", http.StatusBadRequest, err)
+	}
+
+	// Validate password
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req_body.CurrentPassword))
+	if err != nil {
+		return utils.NewAppError("Wrong. This is not the current password!", http.StatusUnauthorized, nil)
+	}
+
+	if req_body.NewPassword == req_body.CurrentPassword {
+		return utils.NewAppError("You already have the same password", http.StatusBadRequest, nil)
+	}
+
+	// Validate password
+	if valid, message := validatePasswordComplexity(req_body.NewPassword); !valid {
+		return utils.NewAppError(message, http.StatusBadRequest, nil)
+	}
+
+	// Validate password confirmation
+	if req_body.NewPassword != req_body.ConfirmPassword {
+		return utils.NewAppError("Passwords do not match", http.StatusBadRequest, nil)
+	}
+
+	hashed_password, err := bcrypt.GenerateFromPassword([]byte(req_body.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return utils.NewInternalServerError(err)
+	}
+
+	updated_user["password"] = hashed_password
+	updated_user["updatedAt"] = bson.NewDateTimeFromTime(time.Now())
+	user.UpdatedAt = bson.NewDateTimeFromTime(time.Now())
+
+	// Perform the update
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	user_coll := cfg.DATABASE.Collection(models.USERS_COLLECTION)
+	_, err = user_coll.UpdateOne(
+		ctx,
+		bson.M{"_id": user.ID},
+		bson.M{"$set": updated_user},
+	)
+	if err != nil {
+		return utils.NewInternalServerError(err)
+	}
+
+	response_payload := map[string]any{
+		"user": user.GetPublicProfile(),
+	}
+
+	utils.SuccessResponseWriter(
+		w,
+		"Password changed successfully",
+		response_payload,
+		http.StatusOK,
+	)
+
 	return nil
 }
