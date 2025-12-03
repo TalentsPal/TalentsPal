@@ -682,3 +682,7 @@ func (cfg *AppConfig) ChangePassword(w http.ResponseWriter, r *http.Request) err
 
 	return nil
 }
+
+func (cfg *AppConfig) ResendVerification(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}

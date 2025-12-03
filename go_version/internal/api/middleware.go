@@ -68,6 +68,16 @@ func (cfg *AppConfig) MiddlewareAuthorize(next func(w http.ResponseWriter, r *ht
 			return utils.NewInternalServerError(err)
 		}
 
+		// Check if user is active
+		if !user.IsActive {
+			return utils.NewAppError("Your account has been deactivated", http.StatusUnauthorized, nil)
+		}
+
+		// Check if email is verified
+		if !user.IsEmailVerified {
+			return utils.NewAppError("Please verify your email before logging in. Check your inbox for the verification link.", http.StatusUnauthorized, nil)
+		}
+
 		req_ctx := context.WithValue(r.Context(), CtxUserID, user_id)
 		req_ctx = context.WithValue(req_ctx, CtxUser, user)
 		err = next(w, r.WithContext(req_ctx))
