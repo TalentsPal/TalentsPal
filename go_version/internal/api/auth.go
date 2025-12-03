@@ -636,3 +636,7 @@ func (cfg *AppConfig) UpdateUserProfile(w http.ResponseWriter, r *http.Request) 
 
 	return nil
 }
+
+func (cfg *AppConfig) ChangePassword(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
