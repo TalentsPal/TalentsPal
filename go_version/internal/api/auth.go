@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -383,5 +384,39 @@ func (cfg *AppConfig) VerifyEmailHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (cfg *AppConfig) GetUserProfile(w http.ResponseWriter, r *http.Request) error {
+	ctx_user_id := r.Context().Value(CtxUserID)
+	if ctx_user_id == nil {
+		return utils.NewAppError("user id not found in context", http.StatusUnauthorized, nil)
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	user_coll := cfg.DATABASE.Collection(models.USERS_COLLECTION)
+
+	// Find user by id
+	var user models.User
+	user_id, ok := ctx_user_id.(bson.ObjectID)
+	if !ok {
+		return utils.NewInternalServerError(errors.New("user id found in context is not bson.ObjectID (invalid type)"))
+	}
+	err := user_coll.FindOne(ctx, bson.M{"_id": user_id}).Decode(&user)
+	if err == mongo.ErrNoDocuments {
+		return utils.NewAppError("User not found", http.StatusNotFound, nil)
+	} else if err != nil {
+		return utils.NewInternalServerError(err)
+	}
+
+	response_payload := map[string]any{
+		"user": user.GetPublicProfile(),
+	}
+
+	utils.SuccessResponseWriter(
+		w,
+		"User profile provided successfully",
+		response_payload,
+		http.StatusOK,
+	)
+
 	return nil
 }
