@@ -338,6 +338,17 @@ func (cfg *AppConfig) VerifyEmailHandler(w http.ResponseWriter, r *http.Request)
 			"emailVerificationExpires": nil,
 		},
 	}
+
+	access_token, refresh_token, refresh_token_hashed, refresh_token_exp, is_new_refresh_token, err := cfg.refreshTokens(user)
+	if err != nil {
+		return err
+	}
+
+	if is_new_refresh_token {
+		updated_user["$set"].(bson.M)["refreshToken"] = refresh_token_hashed
+		updated_user["$set"].(bson.M)["refreshTokenExp"] = refresh_token_exp
+	}
+
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 	err = user_coll.FindOneAndUpdate(ctx,
 		bson.M{
@@ -349,24 +360,6 @@ func (cfg *AppConfig) VerifyEmailHandler(w http.ResponseWriter, r *http.Request)
 	).Decode(&user)
 	if err != nil {
 		return utils.NewInternalServerError(err)
-	}
-
-	access_token, refresh_token, refresh_token_hashed, refresh_token_exp, is_new_refresh_token, err := cfg.refreshTokens(user)
-	if err != nil {
-		return err
-	}
-
-	if is_new_refresh_token {
-		refresh_token_update := bson.M{
-			"$set": bson.M{
-				"refreshToken":    refresh_token_hashed,
-				"refreshTokenExp": refresh_token_exp,
-			},
-		}
-		err := user_coll.FindOneAndUpdate(ctx, bson.M{"email": user.Email}, refresh_token_update, opts).Err()
-		if err != nil {
-			return utils.NewInternalServerError(err)
-		}
 	}
 
 	response_payload := map[string]any{
