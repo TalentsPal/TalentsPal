@@ -1,12 +1,15 @@
 import mongoose from 'mongoose';
 
-const connectDB = async () => {
+const connectDB = async (): Promise<void> => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/talentspal');
+    const conn = await mongoose.connect(
+      process.env.MONGO_URI || 'mongodb://localhost:27017/talentspal'
+    );
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
-  } catch (error: any) {
-    console.error(`Error connecting to MongoDB: ${error.message}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`Error connecting to MongoDB: ${message}`);
     process.exit(1);
   }
 };

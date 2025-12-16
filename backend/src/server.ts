@@ -14,6 +14,8 @@ import './config/passport'; // Initialize passport strategies
 import authRoutes from './routes/authRoutes';
 import companyRoutes from './routes/companyRoutes';
 import metadataRoutes from './routes/metadataRoutes';
+import questionRoutes from './routes/questionRoutes';
+import { mongoSanitize } from './middleware/security';
 
 // Initialize Express app
 const app: Application = express();
@@ -25,22 +27,64 @@ connectDB();
  * Middleware Configuration
  */
 
-// Security headers
-app.use(helmet());
+// Security constants
+const HSTS_MAX_AGE = 31536000; // 1 year in seconds
 
-// CORS configuration
+// 🔒 Enhanced Security Headers
 app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+      },
+    },
+    hsts: {
+      maxAge: HSTS_MAX_AGE,
+      includeSubDomains: true,
+      preload: true,
+    },
   })
 );
 
-// Body parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// 🔒 Strict CORS Configuration
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
+
+const CORS_MAX_AGE = 86400; // 24 hours in seconds
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Length', 'X-Request-Id'],
+    maxAge: CORS_MAX_AGE,
+  })
+);
+
+// 🔒 MongoDB NoSQL Injection Protection
+app.use(mongoSanitize);
+
+// Body parser with size limits
+const BODY_SIZE_LIMIT = '10mb';
+app.use(express.json({ limit: BODY_SIZE_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: BODY_SIZE_LIMIT }));
 
 // HTTP request logger (only in development)
 if (process.env.NODE_ENV === 'development') {
@@ -67,6 +111,7 @@ app.get('/health', (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/metadata', metadataRoutes);
+app.use('/api/questions', questionRoutes);
 
 // 404 handler for undefined routes
 app.use((req: Request, res: Response) => {
