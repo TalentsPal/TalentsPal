@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { FiUser, FiPhone, FiMapPin, FiBriefcase, FiBook, FiCalendar } from 'react-icons/fi';
+import { FiUser, FiPhone, FiMapPin, FiBriefcase, FiBook, FiCalendar, FiMail } from 'react-icons/fi';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
@@ -11,6 +11,8 @@ import axios from 'axios';
 import { fetchUniversities, fetchMajors, fetchIndustries, fetchCities } from '@/services/metadataService';
 
 interface FormData {
+  fullName: string;
+  email: string;
   phone: string;
   city: string;
   university: string;
@@ -29,6 +31,7 @@ export default function CompleteProfilePage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [role, setRole] = useState('student');
+  const isInitialized = useRef(false);
   
   // Dynamic data from API
   const [cities, setCities] = useState<string[]>([]);
@@ -37,6 +40,8 @@ export default function CompleteProfilePage() {
   const [industries, setIndustries] = useState<{ value: string; label: string }[]>([]);
   
   const [formData, setFormData] = useState<FormData>({
+    fullName: '',
+    email: '',
     phone: '',
     city: '',
     university: '',
@@ -53,18 +58,73 @@ export default function CompleteProfilePage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Prevent double execution in React Strict Mode
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+
     const token = localStorage.getItem('accessToken');
     if (!token) {
       router.push('/login');
+      return;
     }
     
-    // Load metadata
-    const loadMetadata = async () => {
+    // Fetch user data from backend API
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/auth/me', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const user = data.data?.user || data.data;
+          console.log('Fetched user data from API:', user);
+          
+          // Pre-fill form with fresh data from backend
+          setFormData({
+            fullName: user.fullName || '',
+            email: user.email || '',
+            phone: user.phone || '',
+            city: user.city || '',
+            university: user.university || '',
+            universityOther: '',
+            major: user.major || '',
+            majorOther: '',
+            graduationYear: user.graduationYear || '',
+            companyName: user.companyName || '',
+            companyLocation: user.companyLocation || '',
+            industry: user.industry || '',
+            industryOther: '',
+          });
+          
+          // Set role from user data
+          if (user.role) {
+            setRole(user.role);
+          }
+
+          // Update localStorage
+          localStorage.setItem('user', JSON.stringify(user));
+        } else {
+          router.push('/login');
+        }
+      } catch (error) {
+        console.error('Failed to fetch user data:', error);
+        router.push('/login');
+      }
+    };
+    
+    // Load metadata and user data in parallel
+    const loadData = async () => {
       const [citiesData, universitiesData, majorsData, industriesData] = await Promise.all([
         fetchCities(),
         fetchUniversities(),
         fetchMajors(),
         fetchIndustries(),
+        fetchUserData(),
       ]);
 
       setCities(citiesData);
@@ -73,7 +133,7 @@ export default function CompleteProfilePage() {
       setIndustries(industriesData.map(i => ({ value: i.name, label: i.name })));
     };
 
-    loadMetadata();
+    loadData();
   }, [router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -274,6 +334,30 @@ export default function CompleteProfilePage() {
 
             {/* Common Fields */}
             <div className="space-y-5">
+              <Input
+                id="fullName"
+                name="fullName"
+                type="text"
+                label="Full Name"
+                value={formData.fullName}
+                onChange={handleChange}
+                disabled
+                icon={<FiUser />}
+                placeholder="Your full name"
+              />
+
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                label="Email Address"
+                value={formData.email}
+                onChange={handleChange}
+                disabled
+                icon={<FiMail />}
+                placeholder="your@email.com"
+              />
+
               <Input
                 id="phone"
                 name="phone"

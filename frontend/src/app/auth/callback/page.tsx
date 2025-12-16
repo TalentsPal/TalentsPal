@@ -40,13 +40,15 @@ export default function AuthCallbackPage() {
 
           if (response.ok) {
             const data = await response.json();
-            console.log('User data received:', data.data);
+            console.log('User data received:', data);
             
             // Store user data - handle nested user object
             const userData = data.data?.user || data.data;
+            console.log('Extracted user data:', userData);
+            
             if (userData) {
               localStorage.setItem('user', JSON.stringify(userData));
-              console.log('User data stored in localStorage');
+              console.log('User data stored in localStorage:', JSON.stringify(userData, null, 2));
             }
 
             // Redirect based on profile completion
