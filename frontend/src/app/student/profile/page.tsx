@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -45,6 +45,7 @@ export default function StudentProfilePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const isInitialized = useRef(false);
   
   // Dynamic data
   const [cities, setCities] = useState<string[]>([]);
@@ -65,31 +66,64 @@ export default function StudentProfilePage() {
   });
 
   useEffect(() => {
-    // Load user data from localStorage
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
-      setProfileData({
-        fullName: parsedUser.fullName || '',
-        email: parsedUser.email || '',
-        phone: parsedUser.phone || '',
-        city: parsedUser.city || '',
-        university: parsedUser.university || '',
-        major: parsedUser.major || '',
-        graduationYear: parsedUser.graduationYear || '',
-        linkedInUrl: parsedUser.linkedInUrl || '',
-        interests: parsedUser.interests || [],
-        bio: parsedUser.bio || '',
-      });
-    }
+    // Prevent double execution in React Strict Mode
+    if (isInitialized.current) return;
+    isInitialized.current = true;
 
-    // Load metadata
-    const loadMetadata = async () => {
+    // Fetch user data from backend API
+    const fetchUserData = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+          router.push('/login');
+          return;
+        }
+
+        const response = await fetch('http://localhost:5000/api/auth/me', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const userData = data.data?.user || data.data;
+          
+          // Update state with fresh data from backend
+          setUser(userData);
+          setProfileData({
+            fullName: userData.fullName || '',
+            email: userData.email || '',
+            phone: userData.phone || '',
+            city: userData.city || '',
+            university: userData.university || '',
+            major: userData.major || '',
+            graduationYear: userData.graduationYear || '',
+            linkedInUrl: userData.linkedInUrl || '',
+            interests: userData.interests || [],
+            bio: userData.bio || '',
+          });
+
+          // Update localStorage with fresh data
+          localStorage.setItem('user', JSON.stringify(userData));
+        } else {
+          router.push('/login');
+        }
+      } catch (error) {
+        console.error('Failed to fetch user data:', error);
+        router.push('/login');
+      }
+    };
+
+    // Load metadata and user data in parallel
+    const loadData = async () => {
       const [citiesData, universitiesData, majorsData] = await Promise.all([
         fetchCities(),
         fetchUniversities(),
         fetchMajors(),
+        fetchUserData(),
       ]);
 
       setCities(citiesData);
@@ -97,8 +131,8 @@ export default function StudentProfilePage() {
       setMajors(majorsData.map(m => ({ value: m.name, label: m.name })));
     };
 
-    loadMetadata();
-  }, []);
+    loadData();
+  }, [router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
