@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   FiUsers,
@@ -12,6 +13,46 @@ import {
 } from 'react-icons/fi';
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    // Fetch user data from backend API
+    const fetchUserData = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+          router.push('/login');
+          return;
+        }
+
+        const response = await fetch('http://localhost:5000/api/auth/me', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const userData = data.data?.user || data.data;
+          setUser(userData);
+          
+          // Update localStorage with fresh data
+          localStorage.setItem('user', JSON.stringify(userData));
+        } else {
+          router.push('/login');
+        }
+      } catch (error) {
+        console.error('Failed to fetch user data:', error);
+        router.push('/login');
+      }
+    };
+
+    fetchUserData();
+  }, [router]);
+
   const stats = [
     {
       icon: <FiUsers className="text-2xl" />,
@@ -53,7 +94,7 @@ export default function AdminDashboard() {
           className="mb-8"
         >
           <h1 className="text-4xl font-bold text-dark-900 dark:text-dark-50 mb-2">
-            Admin Dashboard 🎯
+            Welcome back, {user?.fullName || 'Admin'}! 🎯
           </h1>
           <p className="text-lg text-dark-600 dark:text-dark-400">
             Manage your platform and monitor analytics
