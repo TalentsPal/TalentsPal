@@ -13,7 +13,7 @@ const fileFilter = (
   req: Request,
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
-) => {
+): void => {
   // Accept only image files
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
@@ -22,12 +22,15 @@ const fileFilter = (
   }
 };
 
+// Constants
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
 // Configure multer
 export const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
+  storage,
+  fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB max file size
+    fileSize: MAX_FILE_SIZE,
   },
 });
 

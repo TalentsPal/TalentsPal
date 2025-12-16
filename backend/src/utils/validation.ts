@@ -2,6 +2,11 @@
  * Validation Utility Functions
  */
 
+// Constants
+const MIN_NAME_LENGTH = 2;
+const MAX_NAME_LENGTH = 50;
+const MIN_PASSWORD_LENGTH = 8;
+
 /**
  * Validate Email Format
  */
@@ -19,9 +24,14 @@ export const isValidEmail = (email: string): boolean => {
  * - At least one number
  * - At least one special character
  */
-export const isValidPassword = (password: string): { valid: boolean; message?: string } => {
-  if (password.length < 8) {
-    return { valid: false, message: 'Password must be at least 8 characters long' };
+export const isValidPassword = (
+  password: string
+): { valid: boolean; message?: string } => {
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return {
+      valid: false,
+      message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long`,
+    };
   }
 
   if (!/[A-Z]/.test(password)) {
@@ -55,7 +65,8 @@ export const isValidPhoneNumber = (phone: string): boolean => {
  * Validate Name (First/Last)
  */
 export const isValidName = (name: string): boolean => {
-  return name.trim().length >= 2 && name.trim().length <= 50;
+  const trimmedLength = name.trim().length;
+  return trimmedLength >= MIN_NAME_LENGTH && trimmedLength <= MAX_NAME_LENGTH;
 };
 
 /**
