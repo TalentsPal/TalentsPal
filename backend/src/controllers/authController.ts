@@ -8,8 +8,17 @@ import {
   isValidName,
   sanitizeInput,
   isValidRole,
+  isValidPhoneNumber,
 } from '../utils/validation';
-import { generateVerificationToken, sendVerificationEmail } from '../utils/email';
+import {
+  generateVerificationToken,
+  sendVerificationEmail,
+} from '../utils/email';
+
+// Constants
+const VERIFICATION_TOKEN_EXPIRY_HOURS = 24;
+const MAX_BIO_LENGTH = 500;
+const MAX_DESCRIPTION_LENGTH = 1000;
 
 /**
  * @route   POST /api/auth/signup
@@ -75,11 +84,9 @@ export const signup = asyncHandler(
       throw new AppError('Invalid role specified', 400);
     }
 
-    // Role-specific validation
+    // Block company registration
     if (role === 'company') {
-      if (!companyName || !companyEmail || !companyLocation || !industry) {
-        throw new AppError('Please provide all required company fields', 400);
-      }
+      throw new AppError('Company registration is currently disabled', 403);
     }
 
     // Check if user already exists
@@ -90,7 +97,9 @@ export const signup = asyncHandler(
 
     // Generate verification token
     const verificationToken = generateVerificationToken();
-    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const verificationExpires = new Date(
+      Date.now() + VERIFICATION_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000
+    );
 
     // Prepare user data
     const userData = {
@@ -255,7 +264,6 @@ export const updateProfile = asyncHandler(
     const {
       fullName,
       phone,
-      profileImage,
       city,
       university,
       major,
@@ -263,8 +271,21 @@ export const updateProfile = asyncHandler(
       interests,
       bio,
       linkedInUrl,
-      role, // Allow setting role if needed
+      // Company fields
+      companyName,
+      companyLocation,
+      industry,
+      description,
     } = req.body;
+
+    // ⚠️ SECURITY: Prevent modification of sensitive fields
+    const blockedFields = ['email', 'role', 'isEmailVerified', 'isActive', 'password', 'googleId', 'linkedinId', '_id', 'createdAt', 'updatedAt'];
+    const attemptedFields = Object.keys(req.body);
+    const forbidden = attemptedFields.filter(field => blockedFields.includes(field));
+    
+    if (forbidden.length > 0) {
+      throw new AppError(`Cannot modify protected fields: ${forbidden.join(', ')}`, 403);
+    }
 
     // Find user
     const user = await User.findById(userId);
@@ -274,7 +295,7 @@ export const updateProfile = asyncHandler(
     }
 
     // Update fields if provided
-    if (fullName) {
+    if (fullName !== undefined) {
       const sanitizedFullName = sanitizeInput(fullName);
       if (!isValidName(sanitizedFullName)) {
         throw new AppError('Full name must be between 2 and 100 characters', 400);
@@ -282,31 +303,53 @@ export const updateProfile = asyncHandler(
       user.fullName = sanitizedFullName;
     }
 
-    if (phone !== undefined) user.phone = phone;
-    if (profileImage !== undefined) user.profileImage = profileImage;
-    if (city !== undefined) user.city = city;
-    if (university !== undefined) user.university = university;
-
-    // Update role if it's currently default 'student' and user wants to change (e.g. to company)
-    // Or just allow it for now.
-    if (role && ['student', 'company'].includes(role)) {
-      user.role = role;
+    if (phone !== undefined) {
+      if (phone && !isValidPhoneNumber(phone)) {
+        throw new AppError('Invalid phone number format', 400);
+      }
+      user.phone = phone;
     }
+    
+    if (city !== undefined) user.city = sanitizeInput(city);
+    if (university !== undefined) user.university = sanitizeInput(university);
 
-    // Student fields
+    // Student fields (only for student role)
     if (user.role === 'student') {
-      if (major !== undefined) user.major = major;
-      if (graduationYear !== undefined) user.graduationYear = graduationYear;
-      if (interests !== undefined) user.interests = interests;
-      if (bio !== undefined) user.bio = bio;
-      if (linkedInUrl !== undefined) user.linkedInUrl = linkedInUrl;
+      if (major !== undefined) user.major = sanitizeInput(major);
+      if (graduationYear !== undefined) user.graduationYear = sanitizeInput(graduationYear);
+      if (interests !== undefined) {
+        // Validate interests array
+        if (!Array.isArray(interests)) {
+          throw new AppError('Interests must be an array', 400);
+        }
+        user.interests = interests.map(i => sanitizeInput(i));
+      }
+      if (bio !== undefined) {
+        const sanitizedBio = sanitizeInput(bio);
+        if (sanitizedBio.length > MAX_BIO_LENGTH) {
+          throw new AppError(
+            `Bio cannot exceed ${MAX_BIO_LENGTH} characters`,
+            400
+          );
+        }
+        user.bio = sanitizedBio;
+      }
+      if (linkedInUrl !== undefined) user.linkedInUrl = sanitizeInput(linkedInUrl);
     } else if (user.role === 'company') {
-      // Company fields
-      const { companyName, companyLocation, industry, description } = req.body;
-      if (companyName !== undefined) user.companyName = companyName;
-      if (companyLocation !== undefined) user.companyLocation = companyLocation;
-      if (industry !== undefined) user.industry = industry;
-      if (description !== undefined) user.description = description;
+      // Company fields (only for company role)
+      if (companyName !== undefined) user.companyName = sanitizeInput(companyName);
+      if (companyLocation !== undefined) user.companyLocation = sanitizeInput(companyLocation);
+      if (industry !== undefined) user.industry = sanitizeInput(industry);
+      if (description !== undefined) {
+        const sanitizedDesc = sanitizeInput(description);
+        if (sanitizedDesc.length > MAX_DESCRIPTION_LENGTH) {
+          throw new AppError(
+            `Description cannot exceed ${MAX_DESCRIPTION_LENGTH} characters`,
+            400
+          );
+        }
+        user.description = sanitizedDesc;
+      }
     }
 
     // Mark profile as complete if essential fields are present
@@ -483,7 +526,9 @@ export const resendVerification = asyncHandler(
 
     // Generate new verification token
     const verificationToken = generateVerificationToken();
-    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const verificationExpires = new Date(
+      Date.now() + VERIFICATION_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000
+    );
 
     user.emailVerificationToken = verificationToken;
     user.emailVerificationExpires = verificationExpires;

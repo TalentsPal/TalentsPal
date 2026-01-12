@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+import * as jwt from 'jsonwebtoken';
 import { IUser } from '../models/User';
 
 /**
@@ -13,9 +13,14 @@ export interface IJWTPayload {
 /**
  * JWT Configuration
  */
-const JWT_SECRET: string = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '30d';
+const DEFAULT_JWT_SECRET = 'your-super-secret-jwt-key-change-in-production';
+const DEFAULT_ACCESS_TOKEN_EXPIRY = '7d';
+const DEFAULT_REFRESH_TOKEN_EXPIRY = '30d';
+
+const JWT_SECRET: jwt.Secret = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
+const JWT_EXPIRES_IN: string | number = process.env.JWT_EXPIRES_IN || DEFAULT_ACCESS_TOKEN_EXPIRY;
+const JWT_REFRESH_EXPIRES_IN: string | number =
+  process.env.JWT_REFRESH_EXPIRES_IN || DEFAULT_REFRESH_TOKEN_EXPIRY;
 
 /**
  * Generate Access Token
@@ -29,7 +34,7 @@ export const generateAccessToken = (user: IUser): string => {
     role: user.role,
   };
 
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions);
 };
 
 /**
@@ -44,7 +49,7 @@ export const generateRefreshToken = (user: IUser): string => {
     role: user.role,
   };
 
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN } as jwt.SignOptions);
 };
 
 /**
@@ -66,7 +71,9 @@ export const verifyToken = (token: string): IJWTPayload | null => {
  * @param user - User document
  * @returns Object containing access and refresh tokens
  */
-export const generateTokenPair = (user: IUser) => {
+export const generateTokenPair = (
+  user: IUser
+): { accessToken: string; refreshToken: string } => {
   return {
     accessToken: generateAccessToken(user),
     refreshToken: generateRefreshToken(user),

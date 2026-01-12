@@ -4,13 +4,19 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Constants
+const TOKEN_BYTE_SIZE = 32;
+const VERIFICATION_EXPIRY_HOURS = 24;
+const DEFAULT_SMTP_PORT = 587;
+const DEFAULT_APP_NAME = 'TalentsPal';
+
 /**
  * Email Configuration
  * Using Gmail SMTP with app password
  */
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
+  port: parseInt(process.env.SMTP_PORT || `${DEFAULT_SMTP_PORT}`),
   secure: false, // true for 465, false for other ports
   auth: {
     user: process.env.SMTP_USER || 'talentspalsup@gmail.com',
@@ -22,7 +28,7 @@ const transporter = nodemailer.createTransport({
  * Generate a random verification token
  */
 export const generateVerificationToken = (): string => {
-  return crypto.randomBytes(32).toString('hex');
+  return crypto.randomBytes(TOKEN_BYTE_SIZE).toString('hex');
 };
 
 /**
@@ -36,9 +42,9 @@ export const sendVerificationEmail = async (
   const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
 
   const mailOptions = {
-    from: `"${process.env.APP_NAME || 'TalentsPal'}" <${process.env.EMAIL_FROM || process.env.SMTP_USER || 'talentspalsup@gmail.com'}>`,
+    from: `"${process.env.APP_NAME || DEFAULT_APP_NAME}" <${process.env.EMAIL_FROM || process.env.SMTP_USER || 'talentspalsup@gmail.com'}>`,
     to: email,
-    subject: `Verify Your Email - ${process.env.APP_NAME || 'TalentsPal'}`,
+    subject: `Verify Your Email - ${process.env.APP_NAME || DEFAULT_APP_NAME}`,
     html: `
       <!DOCTYPE html>
       <html>
@@ -107,7 +113,7 @@ export const sendVerificationEmail = async (
             <p style="word-break: break-all; background: #fff; padding: 10px; border-radius: 5px;">${verificationUrl}</p>
             
             <div class="warning">
-              <strong>⚠️ Important:</strong> This verification link will expire in 24 hours.
+              <strong>⚠️ Important:</strong> This verification link will expire in ${VERIFICATION_EXPIRY_HOURS} hours.
             </div>
             
             <p>If you didn't create an account with TalentsPal, please ignore this email.</p>
@@ -132,7 +138,7 @@ export const sendVerificationEmail = async (
       
       ${verificationUrl}
       
-      This verification link will expire in 24 hours.
+      This verification link will expire in ${VERIFICATION_EXPIRY_HOURS} hours.
       
       If you didn't create an account with TalentsPal, please ignore this email.
       

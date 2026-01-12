@@ -381,20 +381,9 @@ export default function SignupPage() {
               </div>
             )}
 
-            {/* Role Selection */}
-            <Select
-              id="role"
-              name="role"
-              label="I am a"
-              value={formData.role}
-              onChange={handleRoleChange}
-              options={[
-                { value: 'student', label: 'Student / Graduate' },
-                { value: 'company', label: 'Company' },
-              ]}
-              required
-              error={errors.role}
-            />
+            {/* Role Selection - Company option disabled */}
+            <input type="hidden" name="role" value="student" />
+            {/* Role is automatically set to 'student' - Company registration is currently disabled */}
 
             {/* Common Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

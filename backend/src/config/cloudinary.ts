@@ -9,6 +9,11 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Constants
+const DEFAULT_IMAGE_WIDTH = 500;
+const DEFAULT_IMAGE_HEIGHT = 500;
+const DEFAULT_FOLDER = 'talentspal/profiles';
+
 /**
  * Upload image to Cloudinary
  * @param file - File buffer or path
@@ -17,14 +22,19 @@ cloudinary.config({
  */
 export const uploadToCloudinary = async (
   file: string,
-  folder: string = 'talentspal/profiles'
+  folder: string = DEFAULT_FOLDER
 ): Promise<{ url: string; publicId: string }> => {
   try {
     const result = await cloudinary.uploader.upload(file, {
-      folder: folder,
+      folder,
       resource_type: 'auto',
       transformation: [
-        { width: 500, height: 500, crop: 'fill', gravity: 'face' },
+        {
+          width: DEFAULT_IMAGE_WIDTH,
+          height: DEFAULT_IMAGE_HEIGHT,
+          crop: 'fill',
+          gravity: 'face',
+        },
         { quality: 'auto', fetch_format: 'auto' },
       ],
     });
@@ -63,10 +73,15 @@ export const uploadGoogleProfileImage = async (
 ): Promise<{ url: string; publicId: string }> => {
   try {
     const result = await cloudinary.uploader.upload(imageUrl, {
-      folder: `talentspal/profiles/${userId}`,
+      folder: `${DEFAULT_FOLDER}/${userId}`,
       resource_type: 'image',
       transformation: [
-        { width: 500, height: 500, crop: 'fill', gravity: 'face' },
+        {
+          width: DEFAULT_IMAGE_WIDTH,
+          height: DEFAULT_IMAGE_HEIGHT,
+          crop: 'fill',
+          gravity: 'face',
+        },
         { quality: 'auto', fetch_format: 'auto' },
       ],
     });

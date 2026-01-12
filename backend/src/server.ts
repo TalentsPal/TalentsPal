@@ -14,6 +14,13 @@ import './config/passport'; // Initialize passport strategies
 import authRoutes from './routes/authRoutes';
 import companyRoutes from './routes/companyRoutes';
 import metadataRoutes from './routes/metadataRoutes';
+import questionRoutes from './routes/questionRoutes';
+import achievementRoutes from './routes/achievementRoutes';
+import challengeRoutes from './routes/challengeRoutes';
+import analyticsRoutes from './routes/analyticsRoutes';
+import practiceRoutes from './routes/practiceRoutes';
+import { mongoSanitize } from './middleware/security';
+import { compressionMiddleware, cacheControl, requestId, healthCheck } from './middleware/production';
 
 // Initialize Express app
 const app: Application = express();
@@ -25,26 +32,80 @@ connectDB();
  * Middleware Configuration
  */
 
-// Security headers
-app.use(helmet());
+// Security constants
+const HSTS_MAX_AGE = 31536000; // 1 year in seconds
 
-// CORS configuration
+// 🔒 Enhanced Security Headers
 app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+      },
+    },
+    hsts: {
+      maxAge: HSTS_MAX_AGE,
+      includeSubDomains: true,
+      preload: true,
+    },
   })
 );
 
-// Body parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// 🔒 Strict CORS Configuration
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
 
-// HTTP request logger (only in development)
+const CORS_MAX_AGE = 86400; // 24 hours in seconds
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Length', 'X-Request-Id'],
+    maxAge: CORS_MAX_AGE,
+  })
+);
+
+// 🔒 MongoDB NoSQL Injection Protection
+app.use(mongoSanitize);
+
+// 🚀 Production Optimizations
+if (process.env.NODE_ENV === 'production') {
+  app.use(compressionMiddleware); // GZIP compression
+  app.use(cacheControl); // Cache control headers
+}
+app.use(requestId); // Request tracking
+
+// Body parser with size limits
+const BODY_SIZE_LIMIT = '10mb';
+app.use(express.json({ limit: BODY_SIZE_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: BODY_SIZE_LIMIT }));
+
+// HTTP request logger
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
+} else {
+  // Production: log only errors and important requests
+  app.use(morgan('combined', {
+    skip: (req, res) => res.statusCode < 400
+  }));
 }
 
 // Initialize Passport
@@ -55,18 +116,17 @@ app.use(passport.initialize());
  */
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({
-    success: true,
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-  });
-});
+app.get('/health', healthCheck);
 
 // API version 1 routes
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/metadata', metadataRoutes);
+app.use('/api/questions', questionRoutes);
+app.use('/api/achievements', achievementRoutes);
+app.use('/api/challenges', challengeRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/practice', practiceRoutes);
 
 // 404 handler for undefined routes
 app.use((req: Request, res: Response) => {
@@ -103,15 +163,34 @@ app.listen(PORT, () => {
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err: Error) => {
   console.error('❌ Unhandled Rejection:', err.message);
-  console.error('Shutting down server...');
-  process.exit(1);
+  console.error('Stack:', err.stack);
+  
+  // In production, log to monitoring service (e.g., Sentry, LogRocket)
+  if (process.env.NODE_ENV === 'production') {
+    // TODO: Send to error monitoring service
+    console.error('Shutting down gracefully...');
+    process.exit(1);
+  } else {
+    console.error('Shutting down server...');
+    process.exit(1);
+  }
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err: Error) => {
   console.error('❌ Uncaught Exception:', err.message);
-  console.error('Shutting down server...');
-  process.exit(1);
+  console.error('Stack:', err.stack);
+  
+  // In production, log to monitoring service
+  if (process.env.NODE_ENV === 'production') {
+    // TODO: Send to error monitoring service
+    console.error('Shutting down gracefully...');
+    process.exit(1);
+  } else {
+    console.error('Shutting down server...');
+    process.exit(1);
+  }
 });
 
 export default app;
+ 

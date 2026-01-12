@@ -17,11 +17,12 @@ export const getUniversities = async (req: Request, res: Response) => {
       success: true,
       data: universities,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({
       success: false,
       message: 'Failed to fetch universities',
-      error: error.message,
+      error: message,
     });
   }
 };
@@ -39,11 +40,12 @@ export const getMajors = async (req: Request, res: Response) => {
       success: true,
       data: majors,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({
       success: false,
       message: 'Failed to fetch majors',
-      error: error.message,
+      error: message,
     });
   }
 };
@@ -61,11 +63,12 @@ export const getIndustries = async (req: Request, res: Response) => {
       success: true,
       data: industries,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({
       success: false,
       message: 'Failed to fetch industries',
-      error: error.message,
+      error: message,
     });
   }
 };
@@ -80,17 +83,18 @@ export const getCities = async (req: Request, res: Response) => {
       .sort({ name: 1 });
 
     // Return just the city names as an array
-    const cityNames = cities.map(city => city.name);
+    const cityNames = cities.map((city) => city.name);
 
     res.status(200).json({
       success: true,
       data: cityNames,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({
       success: false,
       message: 'Failed to fetch cities',
-      error: error.message,
+      error: message,
     });
   }
 };

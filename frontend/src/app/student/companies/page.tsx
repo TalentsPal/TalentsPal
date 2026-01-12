@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,30 +5,45 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { FiSearch, FiMapPin, FiGlobe, FiLinkedin, FiMail, FiInfo, FiArrowLeft } from 'react-icons/fi';
 import { getCompanies, Company } from '@/services/companyService';
+import { fetchCities } from '@/services/metadataService';
 import Input from '@/components/ui/Input';
+import ErrorMessage from '@/components/ui/ErrorMessage';
 
 export default function CompaniesPage() {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [city, setCity] = useState('');
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Load cities from backend
+    const loadCities = async () => {
+      const cities = await fetchCities();
+      setAvailableCities(cities);
+    };
+    loadCities();
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchCompanies();
+      fetchCompaniesData();
     }, 300); // Debounce search
 
     return () => clearTimeout(timer);
   }, [search, city]);
 
-  const fetchCompanies = async () => {
+  const fetchCompaniesData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await getCompanies({ search, city });
       setCompanies(data.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      setError(error.message || 'Failed to load companies. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -110,22 +124,40 @@ export default function CompaniesPage() {
               />
             </div>
 
-            <div className="md:col-span-4 flex gap-2">
-              {['', 'Ramallah', 'Nablus'].map((c) => (
+            <div className="md:col-span-4 flex gap-2 flex-wrap">
+              <button
+                onClick={() => setCity('')}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${city === ''
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                  }`}
+              >
+                All Cities
+              </button>
+              {availableCities.slice(0, 3).map((c) => (
                 <button
                   key={c}
                   onClick={() => setCity(c)}
-                  className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${city === c
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${city === c
                     ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
                     }`}
                 >
-                  {c || 'All'}
+                  {c}
                 </button>
               ))}
             </div>
           </motion.div>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <ErrorMessage 
+            message={error} 
+            onDismiss={() => setError(null)}
+            type="error"
+          />
+        )}
 
         {/* Content */}
         {loading ? (
