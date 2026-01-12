@@ -62,9 +62,11 @@ const CompanySchema = new Schema<ICompany>(
   }
 );
 
-// Index for faster searching
-CompanySchema.index({ city: 1 });
-CompanySchema.index({ name: 'text' });
+// Indexes for faster searching and filtering
+CompanySchema.index({ city: 1 }); // Filter by city
+CompanySchema.index({ name: 'text' }); // Full-text search on company name
+CompanySchema.index({ createdAt: -1 }); // Sort by creation date
+CompanySchema.index({ sourceFile: 1 }, { sparse: true }); // Filter by source
 
 const Company = mongoose.model<ICompany>('Company', CompanySchema);
 

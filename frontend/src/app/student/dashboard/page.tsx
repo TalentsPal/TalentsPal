@@ -13,20 +13,29 @@ import {
   FiCheckCircle,
   FiLogOut,
   FiUser,
+  FiClock,
+  FiTrendingUp,
 } from 'react-icons/fi';
+import { getUserStats, getUserTestHistory } from '@/services/questionService';
+import DailyChallengeCard from '@/components/DailyChallengeCard';
 
 export default function StudentDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
     examsTaken: 0,
     lastScore: 0,
-    companiesViewed: 0,
-    profileCompletion: 0
+    averageScore: 0,
+    highestScore: 0,
+    profileCompletion: 0,
+    totalQuestions: 0,
+    totalCorrect: 0,
   });
+  const [recentAttempts, setRecentAttempts] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchUserData = async () => {
+    const fetchDashboardData = async () => {
       try {
         const token = localStorage.getItem('accessToken');
         if (!token) {
@@ -34,7 +43,10 @@ export default function StudentDashboard() {
           return;
         }
 
-        const response = await fetch('http://localhost:5000/api/auth/me', {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+        // Fetch user data
+        const userResponse = await fetch(`${apiUrl}/auth/me`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -42,38 +54,78 @@ export default function StudentDashboard() {
           },
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          const userData = data.data?.user || data.data;
-          setUser(userData);
-          
-          // Calculate profile completion
-          let completion = 0;
-          if (userData.fullName) completion += 20;
-          if (userData.email) completion += 20;
-          if (userData.phoneNumber) completion += 15;
-          if (userData.university) completion += 15;
-          if (userData.major) completion += 15;
-          if (userData.city) completion += 15;
-          
-          setStats({
-            examsTaken: 0,
-            lastScore: 0,
-            companiesViewed: 0,
-            profileCompletion: completion
+        if (!userResponse.ok) {
+          router.push('/login');
+          return;
+        }
+
+        const userData = await userResponse.json();
+        const user = userData.data?.user || userData.data;
+        setUser(user);
+        localStorage.setItem('user', JSON.stringify(user));
+
+        // Calculate profile completion
+        let completion = 0;
+        if (user.fullName) completion += 15;
+        if (user.email) completion += 15;
+        if (user.phone) completion += 15;
+        if (user.university) completion += 15;
+        if (user.major) completion += 15;
+        if (user.city) completion += 10;
+        if (user.graduationYear) completion += 10;
+        if (user.linkedInUrl) completion += 5;
+
+        // Fetch user stats
+        const userStats = await getUserStats();
+        
+        // Fetch recent test history
+        const history = await getUserTestHistory(undefined, 1, 5);
+        setRecentAttempts(history.attempts || []);
+
+        // Calculate stats
+        let totalAttempts = 0;
+        let avgScore = 0;
+        let maxScore = 0;
+        let totalQs = 0;
+        let totalCorrect = 0;
+
+        if (userStats && userStats.length > 0) {
+          userStats.forEach((stat: any) => {
+            totalAttempts += stat.totalAttempts || 0;
+            avgScore += (stat.averageScore || 0) * (stat.totalAttempts || 0);
+            maxScore = Math.max(maxScore, stat.highestScore || 0);
+            totalQs += stat.totalQuestions || 0;
+            totalCorrect += stat.totalCorrect || 0;
           });
           
-          localStorage.setItem('user', JSON.stringify(userData));
-        } else {
-          router.push('/login');
+          if (totalAttempts > 0) {
+            avgScore = Math.round(avgScore / totalAttempts);
+          }
         }
+
+        // Get last score from recent attempts
+        const lastScore = history.attempts && history.attempts.length > 0 
+          ? history.attempts[0].score 
+          : 0;
+
+        setStats({
+          examsTaken: totalAttempts,
+          lastScore: Math.round(lastScore),
+          averageScore: avgScore,
+          highestScore: Math.round(maxScore),
+          profileCompletion: completion,
+          totalQuestions: totalQs,
+          totalCorrect: totalCorrect,
+        });
+        
       } catch (error) {
-        console.error('Failed to fetch user data:', error);
-        router.push('/login');
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchUserData();
+    fetchDashboardData();
   }, [router]);
 
   const handleLogout = () => {
@@ -92,6 +144,14 @@ export default function StudentDashboard() {
       link: '/student/exam',
     },
     {
+      title: 'Practice Mode',
+      description: 'Practice unlimited questions without pressure',
+      icon: <FiTarget className="text-2xl" />,
+      color: 'bg-gradient-to-br from-emerald-500 to-emerald-600',
+      hoverColor: 'hover:from-emerald-600 hover:to-emerald-700',
+      link: '/student/practice',
+    },
+    {
       title: 'Browse Companies',
       description: 'Discover companies hiring in Palestine',
       icon: <FiBriefcase className="text-2xl" />,
@@ -100,12 +160,28 @@ export default function StudentDashboard() {
       link: '/student/companies',
     },
     {
-      title: 'Update Profile',
-      description: 'Keep your profile complete and updated',
-      icon: <FiUser className="text-2xl" />,
-      color: 'bg-gradient-to-br from-green-500 to-green-600',
-      hoverColor: 'hover:from-green-600 hover:to-green-700',
-      link: '/student/profile',
+      title: 'My Achievements',
+      description: 'View your unlocked badges and progress',
+      icon: <FiAward className="text-2xl" />,
+      color: 'bg-gradient-to-br from-yellow-500 to-yellow-600',
+      hoverColor: 'hover:from-yellow-600 hover:to-yellow-700',
+      link: '/student/achievements',
+    },
+    {
+      title: 'Performance Analytics',
+      description: 'Track your progress with detailed charts',
+      icon: <FiTrendingUp className="text-2xl" />,
+      color: 'bg-gradient-to-br from-indigo-500 to-indigo-600',
+      hoverColor: 'hover:from-indigo-600 hover:to-indigo-700',
+      link: '/student/analytics',
+    },
+    {
+      title: 'Leaderboard',
+      description: 'See how you rank against other students',
+      icon: <FiAward className="text-2xl" />,
+      color: 'bg-gradient-to-br from-pink-500 to-pink-600',
+      hoverColor: 'hover:from-pink-600 hover:to-pink-700',
+      link: '/student/leaderboard',
     },
   ];
 
@@ -119,15 +195,15 @@ export default function StudentDashboard() {
     },
     {
       icon: <FiAward />,
-      label: 'Last Score',
-      value: stats.lastScore ? `${stats.lastScore}%` : 'N/A',
+      label: 'Highest Score',
+      value: stats.highestScore ? `${stats.highestScore}%` : 'N/A',
       color: 'text-green-600',
       bgColor: 'bg-green-50',
     },
     {
-      icon: <FiBriefcase />,
-      label: 'Companies Viewed',
-      value: stats.companiesViewed,
+      icon: <FiTarget />,
+      label: 'Average Score',
+      value: stats.averageScore ? `${stats.averageScore}%` : 'N/A',
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
     },
@@ -139,6 +215,17 @@ export default function StudentDashboard() {
       bgColor: 'bg-orange-50',
     },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
@@ -206,7 +293,7 @@ export default function StudentDashboard() {
             <FiTarget className="text-blue-600" />
             Quick Actions
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {quickActions.map((action, index) => (
               <Link key={index} href={action.link}>
                 <div className={`${action.color} ${action.hoverColor} rounded-2xl p-8 text-white shadow-lg hover:shadow-xl transition-all cursor-pointer transform hover:-translate-y-1 duration-200`}>
@@ -223,6 +310,11 @@ export default function StudentDashboard() {
               </Link>
             ))}
           </div>
+        </div>
+
+        {/* Daily Challenge Card */}
+        <div className="mb-8">
+          <DailyChallengeCard />
         </div>
 
         {/* Profile Completion Banner */}
@@ -250,22 +342,77 @@ export default function StudentDashboard() {
 
         {/* Info Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+          {/* Recent Exams */}
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <FiClock className="text-blue-600" />
+              Recent Exam Attempts
+            </h4>
+            <div className="space-y-3">
+              {recentAttempts.length > 0 ? (
+                recentAttempts.map((attempt, index) => (
+                  <div key={attempt._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold ${
+                        attempt.score >= 70 ? 'bg-green-500' : attempt.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}>
+                        {Math.round(attempt.score)}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 capitalize">{attempt.category}</p>
+                        <p className="text-xs text-gray-500">
+                          {attempt.correctCount}/{attempt.totalQuestions} correct • {Math.floor(attempt.timeSpent / 60)}m
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">
+                        {new Date(attempt.completedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <FiBook className="text-4xl text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">No exams taken yet</p>
+                  <Link href="/student/exam">
+                    <button className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">
+                      Take your first exam →
+                    </button>
+                  </Link>
+                </div>
+              )}
+            </div>
+            {recentAttempts.length > 0 && (
+              <Link href="/student/exam/history">
+                <button className="w-full mt-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors border border-blue-200">
+                  View All Attempts
+                </button>
+              </Link>
+            )}
+          </div>
+
           {/* Getting Started */}
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <FiTarget className="text-blue-600" />
+              <FiTarget className="text-purple-600" />
               Getting Started
             </h4>
             <div className="space-y-3">
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">1</div>
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">
+                  {stats.profileCompletion >= 100 ? '✓' : '1'}
+                </div>
                 <div>
                   <p className="font-medium text-gray-900">Complete your profile</p>
                   <p className="text-sm text-gray-600">Add your skills, education, and experience</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">2</div>
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">
+                  {stats.examsTaken > 0 ? '✓' : '2'}
+                </div>
                 <div>
                   <p className="font-medium text-gray-900">Take technical exams</p>
                   <p className="text-sm text-gray-600">Prove your skills with our assessment tests</p>
@@ -280,37 +427,37 @@ export default function StudentDashboard() {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Profile Info */}
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <FiFileText className="text-purple-600" />
-              Your Information
-            </h4>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-600">University</p>
-                <p className="font-medium text-gray-900">{user?.university?.name || 'Not specified'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Major</p>
-                <p className="font-medium text-gray-900">{user?.major?.name || 'Not specified'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">City</p>
-                <p className="font-medium text-gray-900">{user?.city?.name || 'Not specified'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Phone</p>
-                <p className="font-medium text-gray-900">{user?.phoneNumber || 'Not specified'}</p>
-              </div>
+        {/* Profile Info - Moved below */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mt-6">
+          <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <FiFileText className="text-purple-600" />
+            Your Information
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-600">University</p>
+              <p className="font-medium text-gray-900">{user?.university || 'Not specified'}</p>
             </div>
-            <Link href="/student/profile">
-              <button className="w-full mt-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-medium transition-colors border border-purple-200">
-                Edit Profile
-              </button>
-            </Link>
+            <div>
+              <p className="text-sm text-gray-600">Major</p>
+              <p className="font-medium text-gray-900">{user?.major || 'Not specified'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">City</p>
+              <p className="font-medium text-gray-900">{user?.city || 'Not specified'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Phone</p>
+              <p className="font-medium text-gray-900">{user?.phone || 'Not specified'}</p>
+            </div>
           </div>
+          <Link href="/student/profile">
+            <button className="w-full mt-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-medium transition-colors border border-purple-200">
+              Edit Profile
+            </button>
+          </Link>
         </div>
       </div>
     </div>

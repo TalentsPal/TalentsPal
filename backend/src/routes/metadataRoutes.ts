@@ -5,13 +5,14 @@ import {
   getIndustries,
   getCities,
 } from '../controllers/metadataController';
+import { metadataCache, cacheMiddleware } from '../utils/cache';
 
 const router = express.Router();
 
-// GET routes
-router.get('/universities', getUniversities);
-router.get('/majors', getMajors);
-router.get('/industries', getIndustries);
-router.get('/cities', getCities);
+// GET routes with caching
+router.get('/universities', cacheMiddleware(metadataCache, 'universities'), getUniversities);
+router.get('/majors', cacheMiddleware(metadataCache, 'majors'), getMajors);
+router.get('/industries', cacheMiddleware(metadataCache, 'industries'), getIndustries);
+router.get('/cities', cacheMiddleware(metadataCache, 'cities'), getCities);
 
 export default router;

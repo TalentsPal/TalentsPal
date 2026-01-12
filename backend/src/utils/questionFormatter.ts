@@ -146,7 +146,7 @@ export const validateQuestionStructure = (question: any): { valid: boolean; erro
     errors.push('Correct answer must be one of the provided options');
   }
 
-  const validCategories = ['backend', 'frontend', 'qa', 'data-engineering', 'devops', 'mobile', 'fullstack'];
+  const validCategories = ['backend', 'frontend'];
   if (question.category && !validCategories.includes(question.category)) {
     errors.push(`Category must be one of: ${validCategories.join(', ')}`);
   }

@@ -2,7 +2,8 @@ import mongoose, { Document, Schema, Model } from 'mongoose';
 
 export interface ITestAttempt extends Document {
   userId: mongoose.Types.ObjectId;
-  category: 'backend' | 'frontend' | 'qa' | 'data-engineering' | 'devops' | 'mobile' | 'fullstack';
+  category: 'backend' | 'frontend';
+  isPracticeMode: boolean; // Practice mode: unlimited time, instant feedback
   questions: Array<{
     questionId: mongoose.Types.ObjectId;
     userAnswer: string;
@@ -34,7 +35,12 @@ const testAttemptSchema = new Schema<ITestAttempt>(
     category: {
       type: String,
       required: true,
-      enum: ['backend', 'frontend', 'qa', 'data-engineering', 'devops', 'mobile', 'fullstack'],
+      enum: ['backend', 'frontend'],
+      index: true,
+    },
+    isPracticeMode: {
+      type: Boolean,
+      default: false,
       index: true,
     },
     questions: [

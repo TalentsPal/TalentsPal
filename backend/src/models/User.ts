@@ -261,8 +261,12 @@ UserSchema.methods.getPublicProfile = function (): Partial<IUser> {
  * Indexes for performance optimization
  * Note: email index is already created by unique: true constraint
  */
-UserSchema.index({ role: 1 });
-UserSchema.index({ createdAt: -1 });
+UserSchema.index({ role: 1 }); // Filter by role
+UserSchema.index({ createdAt: -1 }); // Sort by creation date
+UserSchema.index({ isEmailVerified: 1, role: 1 }); // Filter verified users by role
+UserSchema.index({ university: 1, major: 1 }); // Student search by university/major
+UserSchema.index({ industry: 1 }); // Company search by industry
+UserSchema.index({ emailVerificationToken: 1 }, { sparse: true }); // Email verification lookup
 
 /**
  * Export User Model

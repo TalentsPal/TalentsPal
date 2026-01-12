@@ -8,6 +8,7 @@ import {
   calculateScore,
   getGrade,
 } from '../utils/questionFormatter';
+import { checkAndUnlockAchievements } from './achievementController';
 
 // Constants
 const DEFAULT_QUESTION_COUNT = 10;
@@ -209,6 +210,14 @@ export const submitAnswers = async (req: Request, res: Response) => {
     });
 
     await testAttempt.save();
+
+    // Check and unlock achievements
+    try {
+      await checkAndUnlockAchievements(userId, testAttempt._id.toString());
+    } catch (achievementError) {
+      console.error('Error checking achievements:', achievementError);
+      // Don't fail the submission if achievements fail
+    }
 
     res.json({
       success: true,

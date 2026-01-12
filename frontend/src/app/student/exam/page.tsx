@@ -22,11 +22,6 @@ export default function TakeExamPage() {
   const categories = [
     { value: 'backend', label: 'Backend Development', icon: '⚙️' },
     { value: 'frontend', label: 'Frontend Development', icon: '🎨' },
-    { value: 'qa', label: 'Quality Assurance', icon: '🧪' },
-    { value: 'data-engineering', label: 'Data Engineering', icon: '📊' },
-    { value: 'devops', label: 'DevOps', icon: '🚀' },
-    { value: 'mobile', label: 'Mobile Development', icon: '📱' },
-    { value: 'fullstack', label: 'Full Stack', icon: '💻' },
   ];
 
   const difficulties = [

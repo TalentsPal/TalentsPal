@@ -88,12 +88,6 @@ const answerValidation = [
 router.get('/random', authenticate, getRandomQuestions);
 
 /**
- * GET /api/questions/:id
- * Get a single question by ID (without correct answer)
- */
-router.get('/:id', authenticate, getQuestionById);
-
-/**
  * POST /api/questions/submit
  * Submit answers and get results
  * Body: { answers: [{ questionId: string, answer: string }], category: string, startedAt?: string }
@@ -126,6 +120,13 @@ router.get('/leaderboard', authenticate, getLeaderboard);
  * Get single test attempt details
  */
 router.get('/attempt/:id', authenticate, getTestAttemptById);
+
+/**
+ * GET /api/questions/:id
+ * Get a single question by ID (without correct answer)
+ * IMPORTANT: This route must be last among GET routes to avoid catching other specific routes
+ */
+router.get('/:id', authenticate, getQuestionById);
 
 // ============================================
 // Admin Routes (protected - admin only)

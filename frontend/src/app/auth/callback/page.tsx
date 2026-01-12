@@ -51,15 +51,9 @@ export default function AuthCallbackPage() {
               console.log('User data stored in localStorage:', JSON.stringify(userData, null, 2));
             }
 
-            // Redirect based on profile completion
-            if (!isProfileComplete) {
-              console.log('Redirecting to complete-profile...');
-              router.push('/complete-profile');
-            } else {
-              const userRole = userData?.role || 'student';
-              console.log('Redirecting to dashboard:', `/${userRole}/dashboard`);
-              router.push(`/${userRole}/dashboard`);
-            }
+            // Always redirect to student dashboard (profile completion removed)
+            console.log('Redirecting to student dashboard...');
+            router.push('/student/dashboard');
           } else {
             throw new Error('Failed to fetch user data');
           }

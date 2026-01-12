@@ -2,12 +2,13 @@ import mongoose, { Document, Schema, Model } from 'mongoose';
 
 export interface IQuestion extends Document {
   questionId: number;
-  category: 'backend' | 'frontend' | 'qa' | 'data-engineering' | 'devops' | 'mobile' | 'fullstack';
+  category: 'backend' | 'frontend';
   question: string;
   options: string[];
   correctAnswer: string;
   difficulty?: 'easy' | 'medium' | 'hard';
   tags?: string[];
+  company?: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -31,8 +32,8 @@ const questionSchema = new Schema<IQuestion>(
       type: String,
       required: [true, 'Category is required'],
       enum: {
-        values: ['backend', 'frontend', 'qa', 'data-engineering', 'devops', 'mobile', 'fullstack'],
-        message: 'Category must be one of: backend, frontend, qa, data-engineering, devops, mobile, fullstack',
+        values: ['backend', 'frontend'],
+        message: 'Category must be either backend or frontend',
       },
       index: true,
     },
@@ -80,6 +81,11 @@ const questionSchema = new Schema<IQuestion>(
         },
         message: 'Cannot have more than 10 tags',
       },
+    },
+    company: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Company name must not exceed 100 characters'],
     },
     isActive: {
       type: Boolean,

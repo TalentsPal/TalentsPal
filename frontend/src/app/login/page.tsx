@@ -58,14 +58,13 @@ export default function LoginPage() {
 
       const userRole: UserRole = data.data.user.role;
 
-      // Redirect based on role
-      const redirectPaths: Record<UserRole, string> = {
-        student: '/student/dashboard',
-        admin: '/admin/dashboard',
-        company: '/company/dashboard',
-      };
+      // Only student role is allowed
+      if (userRole !== 'student') {
+        setErrors({ general: 'Invalid user role. Only student accounts are allowed.' });
+        return;
+      }
 
-      router.push(redirectPaths[userRole]);
+      router.push('/student/dashboard');
     } catch (error: unknown) {
       if (error instanceof Error) {
         const errorMessage = error.message;
