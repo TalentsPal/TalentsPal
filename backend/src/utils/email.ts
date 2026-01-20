@@ -22,6 +22,11 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER || 'talentspalsup@gmail.com',
     pass: process.env.SMTP_PASS?.replace(/\s/g, '') || '',
   },
+
+  // ✅ connection pooling
+  pool: true,
+  maxConnections: 2,
+  maxMessages: 100,
 });
 
 /**
@@ -148,7 +153,10 @@ export const sendVerificationEmail = async (
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    await Promise.race([
+      transporter.sendMail(mailOptions),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("SMTP timeout")), 8000)),
+    ]);
     console.log(`✅ Verification email sent to ${email}`);
   } catch (error) {
     console.error('❌ Error sending verification email:', error);

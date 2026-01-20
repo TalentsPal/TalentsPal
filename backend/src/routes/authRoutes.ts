@@ -22,10 +22,12 @@ const router = express.Router();
 // Rate limiting constants
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const AUTH_MAX_REQUESTS = 5;
+const VERIFICATION_EMAIL_MAX_REQUESTS = 3;
 const GENERAL_MAX_REQUESTS = 100;
 
 // Strict rate limiting for authentication endpoints
 const authLimiter = rateLimiter(RATE_LIMIT_WINDOW_MS, AUTH_MAX_REQUESTS);
+const verificationEmailLimiter = rateLimiter(RATE_LIMIT_WINDOW_MS, VERIFICATION_EMAIL_MAX_REQUESTS);
 const generalLimiter = rateLimiter(RATE_LIMIT_WINDOW_MS, GENERAL_MAX_REQUESTS);
 
 /**
@@ -37,7 +39,7 @@ router.post('/logout', authLimiter, logout);
 
 // Email verification routes
 router.get('/verify-email/:token', generalLimiter, verifyEmail);
-router.post('/resend-verification', authLimiter, resendVerification);
+router.post('/resend-verification', verificationEmailLimiter, resendVerification);
 
 // Test route
 router.get('/test', (req, res) => {

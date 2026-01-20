@@ -684,20 +684,8 @@ export const resendVerification = asyncHandler(
     const sanitizedEmail = sanitizeInput(email.toLowerCase());
 
     // Validate email
-    if (!isValidEmail(email)) {
+    if (!isValidEmail(sanitizedEmail)) {
       throw new AppError('Please provide a valid email address', 400);
-    }
-
-    // Find user
-    const user = await User.findOne({ email: sanitizedEmail });
-
-    if (!user) {
-      throw new AppError('No account found with this email', 404);
-    }
-
-    // Check if already verified
-    if (user.isEmailVerified) {
-      throw new AppError('Email is already verified', 400);
     }
 
     // Generate new verification token
@@ -706,9 +694,17 @@ export const resendVerification = asyncHandler(
       Date.now() + VERIFICATION_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000
     );
 
-    user.emailVerificationToken = verificationToken;
-    user.emailVerificationExpires = verificationExpires;
-    await user.save();
+
+    // Find user and update him 
+    const user = await User.findOneAndUpdate(
+      { email: sanitizedEmail, isEmailVerified: false },
+      { $set: { emailVerificationToken: verificationToken, emailVerificationExpires: verificationExpires } },
+      { new: true, projection: { fullName: 1} }
+    ).lean();
+
+    if (!user) {
+      throw new AppError('No account found with this email or it is already verified', 400);
+    }
 
     // Send verification email
     try {

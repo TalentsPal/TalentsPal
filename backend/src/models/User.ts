@@ -296,6 +296,7 @@ UserSchema.methods.getPublicProfile = function (): Partial<IUser> {
 UserSchema.index({ role: 1 }); // Filter by role
 UserSchema.index({ createdAt: -1 }); // Sort by creation date
 UserSchema.index({ isEmailVerified: 1, role: 1 }); // Filter verified users by role
+UserSchema.index({ email:1, isEmailVerified: 1 }); // Filter verified users by email and isEmailVerified
 UserSchema.index({ university: 1, major: 1 }); // Student search by university/major
 UserSchema.index({ industry: 1 }); // Company search by industry
 UserSchema.index({ emailVerificationToken: 1 }, { sparse: true }); // Email verification lookup
