@@ -9,6 +9,8 @@ import {
   oauthCallback,
   verifyEmail,
   resendVerification,
+  refreshAccessToken,
+  logout,
 } from '../controllers/authController';
 import { uploadProfileImage, deleteProfileImage } from '../controllers/uploadController';
 import { authenticate } from '../middleware/auth';
@@ -31,6 +33,7 @@ const generalLimiter = rateLimiter(RATE_LIMIT_WINDOW_MS, GENERAL_MAX_REQUESTS);
  */
 router.post('/signup', authLimiter, signup);
 router.post('/login', authLimiter, login);
+router.post('/logout', authLimiter, logout);
 
 // Email verification routes
 router.get('/verify-email/:token', generalLimiter, verifyEmail);
@@ -73,5 +76,7 @@ router.put('/change-password', authenticate, changePassword);
 // Profile image upload routes
 router.post('/upload-profile-image', authenticate, upload.single('profileImage'), uploadProfileImage);
 router.delete('/delete-profile-image', authenticate, deleteProfileImage);
+
+router.post("/refresh", refreshAccessToken);
 
 export default router;

@@ -17,7 +17,7 @@ const DEFAULT_APP_NAME = 'TalentsPal';
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || `${DEFAULT_SMTP_PORT}`),
-  secure: false, // true for 465, false for other ports
+  secure: process.env.SMTP_PORT === "465", // true for 465, false for other ports
   auth: {
     user: process.env.SMTP_USER || 'talentspalsup@gmail.com',
     pass: process.env.SMTP_PASS?.replace(/\s/g, '') || '',

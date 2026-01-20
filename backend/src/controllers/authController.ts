@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import User from '../models/User';
-import { generateTokenPair } from '../utils/jwt';
+import User, { COMPANY_ROLE, STUDENT_ROLE, VALID_ROLES } from '../models/User';
+import { generateAccessToken, generateRefreshToken, generateTokenPair, JWT_REFRESH_EXPIRES_IN, parseDurationWithDays } from '../utils/jwt';
 import { AppError, asyncHandler } from '../utils/errorHandler';
 import {
   isValidEmail,
@@ -9,30 +9,48 @@ import {
   sanitizeInput,
   isValidRole,
   isValidPhoneNumber,
+  isValidCity,
+  sanitizeSignupRequest,
+  ensureEmailIsNotFound,
+  isValidUniversity,
+  isValidMajor,
+  isValidYear,
+  validateInterests,
+  sanitizeUpdateProfileRequest,
+  isProfileComplete,
 } from '../utils/validation';
 import {
   generateVerificationToken,
   sendVerificationEmail,
 } from '../utils/email';
+import bcrypt from 'bcrypt';
+import crypto from "crypto";
+import { log } from 'console';
 
 // Constants
 const VERIFICATION_TOKEN_EXPIRY_HOURS = 24;
 const MAX_BIO_LENGTH = 500;
-const MAX_DESCRIPTION_LENGTH = 1000;
+// const MAX_DESCRIPTION_LENGTH = 1000;
+const SALT_ROUNDS = 12;
 
 /**
+ * DONE
  * @route   POST /api/auth/signup
  * @desc    Register a new user
  * @access  Public
  */
 export const signup = asyncHandler(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    // Sanitize inputs first (mutates req.body in place)
+    sanitizeSignupRequest(req.body);
+
     const {
       fullName,
       email,
       password,
       confirmPassword,
       role,
+      countryCode,
       phone,
       city,
       university,
@@ -50,28 +68,23 @@ export const signup = asyncHandler(
     } = req.body;
 
     // Validate required fields
-    if (!fullName || !email || !password || !phone || !city) {
+    if (!fullName || !email || !password || !confirmPassword || !countryCode || !phone || !city) {
       throw new AppError('Please provide all required fields', 400);
     }
 
-    // Validate password confirmation
-    if (password !== confirmPassword) {
-      throw new AppError('Passwords do not match', 400);
-    }
-
-    // Sanitize inputs
-    const sanitizedFullName = sanitizeInput(fullName);
-    const sanitizedEmail = sanitizeInput(email.toLowerCase());
-
-    // Validate full name
-    if (!isValidName(sanitizedFullName)) {
-      throw new AppError('Full name must be between 2 and 100 characters', 400);
-    }
+    // Set default role if not provided
+    const userRole = role || 'student';
 
     // Validate email
-    if (!isValidEmail(sanitizedEmail)) {
+    if (!isValidEmail(email)) {
       throw new AppError('Please provide a valid email address', 400);
     }
+
+    // Check if email is already in use
+    const emailValidation = await ensureEmailIsNotFound(email);
+    if (!emailValidation.valid) {
+      throw new AppError(emailValidation.message || 'An account with this email already found', 409);
+    }    
 
     // Validate password strength
     const passwordValidation = isValidPassword(password);
@@ -79,21 +92,71 @@ export const signup = asyncHandler(
       throw new AppError(passwordValidation.message || 'Invalid password', 400);
     }
 
+    // Validate password confirmation
+    if (password !== confirmPassword) {
+      throw new AppError('Passwords do not match', 400);
+    }
+
     // Validate role if provided
-    if (role && !isValidRole(role)) {
+    if (userRole && !isValidRole(userRole)) {
       throw new AppError('Invalid role specified', 400);
     }
 
+    const phoneNumberValidation = isValidPhoneNumber(phone, countryCode);
+    // Validate phone number with country code
+    if (!phoneNumberValidation.valid) {
+      throw new AppError(phoneNumberValidation.message || 'Invalid phone number format', 400);
+    }
+
+    // Validate city
+    const cityValidation = await isValidCity(city);
+    if (!cityValidation.valid) {
+      throw new AppError(cityValidation.message || 'This city is not supported yet', 404);
+    }   
+
+    if (userRole == VALID_ROLES[STUDENT_ROLE]){
+      // Validate university
+      if (university) {
+        const universityValidation = await isValidUniversity(university);
+        if (!universityValidation.valid) {
+          throw new AppError(universityValidation.message || 'This university is not supported yet', 404);
+        }
+      }
+
+      // Validate major
+      if (major) {
+        const majorValidation = await isValidMajor(major);
+        if (!majorValidation.valid) {
+          throw new AppError(majorValidation.message || 'This major is not supported yet', 404);
+        }
+      }
+
+      // Validate graduation year
+      if (graduationYear) {
+        const graduationYearValidation = isValidYear(graduationYear);
+        if (!graduationYearValidation.valid) {
+          throw new AppError(graduationYearValidation.message || 'Invalid graduation year', 400);
+        } 
+      }
+
+      // Validate interests
+      if (interests && Array.isArray(interests) && interests.length !== 0) {
+        const interestsValidation = validateInterests(interests);
+        if (!interestsValidation.valid) {
+          throw new AppError(interestsValidation.message || 'Invalid interests', 400);
+        }
+        // Update interests to unique values
+        req.body.interests = interestsValidation.uniqueInterests;
+      }
+    }
+
     // Block company registration
-    if (role === 'company') {
+    if (userRole === VALID_ROLES[COMPANY_ROLE]) {
       throw new AppError('Company registration is currently disabled', 403);
     }
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email: sanitizedEmail });
-    if (existingUser) {
-      throw new AppError('Email already registered', 409);
-    }
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     // Generate verification token
     const verificationToken = generateVerificationToken();
@@ -103,24 +166,24 @@ export const signup = asyncHandler(
 
     // Prepare user data
     const userData = {
-      fullName: sanitizedFullName,
-      email: sanitizedEmail,
-      password,
-      role: role || 'student',
+      fullName,
+      email,
+      password: hashedPassword,
+      role: userRole,
       phone,
       city,
       university: university || undefined,
       emailVerificationToken: verificationToken,
       emailVerificationExpires: verificationExpires,
       // Add student-specific fields
-      ...(role === 'student' && {
+      ...(userRole === 'student' && {
         linkedInUrl: linkedInUrl || undefined,
         major: major || undefined,
         graduationYear: graduationYear || undefined,
-        interests: interests || [],
+        interests: req.body.interests || [],
       }),
       // Add company-specific fields
-      ...(role === 'company' && {
+      ...(userRole === 'company' && {
         companyName,
         companyEmail,
         companyLocation,
@@ -134,7 +197,7 @@ export const signup = asyncHandler(
 
     // Send verification email
     try {
-      await sendVerificationEmail(sanitizedEmail, sanitizedFullName, verificationToken);
+      await sendVerificationEmail(email, fullName, verificationToken);
     } catch (error) {
       console.error('Failed to send verification email:', error);
       // Don't fail the signup if email fails, but log it
@@ -158,6 +221,7 @@ export const signup = asyncHandler(
 );
 
 /**
+ * DONE
  * @route   POST /api/auth/login
  * @desc    Authenticate user and get token
  * @access  Public
@@ -204,7 +268,22 @@ export const login = asyncHandler(
     }
 
     // Generate tokens
-    const tokens = generateTokenPair(user);
+    const tokensGenerator = await generateTokenPair(user);
+
+    user.refreshToken = tokensGenerator.refreshTokenHashed;
+    user.refreshTokenExp = tokensGenerator.refreshTokenExpiration;
+    await user.save();
+
+    // send RAW token in cookie
+    const ms = parseDurationWithDays(String(JWT_REFRESH_EXPIRES_IN));
+
+    res.cookie("refreshToken", tokensGenerator.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production"? "none" : "lax",
+      path: "/api/auth/refresh",
+      maxAge: ms,
+    });
 
     // Send response
     res.status(200).json({
@@ -212,13 +291,14 @@ export const login = asyncHandler(
       message: 'Login successful',
       data: {
         user: user.getPublicProfile(),
-        ...tokens,
+        accessToken: tokensGenerator.accessToken,
       },
     });
   }
 );
 
 /**
+ * DONE
  * @route   GET /api/auth/me
  * @desc    Get current user profile
  * @access  Private
@@ -249,6 +329,7 @@ export const getMe = asyncHandler(
 );
 
 /**
+ * DONE
  * @route   PUT /api/auth/update-profile
  * @desc    Update user profile
  * @access  Private
@@ -261,8 +342,11 @@ export const updateProfile = asyncHandler(
 
     const userId = (req.user as any).userId;
 
+    sanitizeUpdateProfileRequest(req.body);
+
     const {
       fullName,
+      countryCode,
       phone,
       city,
       university,
@@ -279,7 +363,7 @@ export const updateProfile = asyncHandler(
     } = req.body;
 
     // ⚠️ SECURITY: Prevent modification of sensitive fields
-    const blockedFields = ['email', 'role', 'isEmailVerified', 'isActive', 'password', 'googleId', 'linkedinId', '_id', 'createdAt', 'updatedAt'];
+    const blockedFields = ['email', 'companyEmail', 'role', 'isEmailVerified', 'isProfileComplete', 'isActive', 'password', 'profileImage', 'emailVerificationToken', 'emailVerificationExpires', 'googleId', 'linkedinId', '_id', 'refreshToken', 'refreshTokenExp', 'createdAt', 'updatedAt'];
     const attemptedFields = Object.keys(req.body);
     const forbidden = attemptedFields.filter(field => blockedFields.includes(field));
     
@@ -296,67 +380,89 @@ export const updateProfile = asyncHandler(
 
     // Update fields if provided
     if (fullName !== undefined) {
-      const sanitizedFullName = sanitizeInput(fullName);
-      if (!isValidName(sanitizedFullName)) {
-        throw new AppError('Full name must be between 2 and 100 characters', 400);
+      const validateName = isValidName(fullName);
+      if (!validateName.valid) {
+        throw new AppError(validateName.message, 400);
       }
-      user.fullName = sanitizedFullName;
+      user.fullName = fullName;
     }
 
-    if (phone !== undefined) {
-      if (phone && !isValidPhoneNumber(phone)) {
-        throw new AppError('Invalid phone number format', 400);
+    // Validate phone number with country code if provided
+    if (phone !== undefined && countryCode !== undefined) {
+      if (phone && countryCode) {
+        const phoneNumberValidation = isValidPhoneNumber(phone, countryCode);
+        if (!phoneNumberValidation.valid) {
+          throw new AppError(phoneNumberValidation.message || 'Invalid phone number format', 400);
+        }
+        user.phone = phone;
       }
-      user.phone = phone;
     }
     
-    if (city !== undefined) user.city = sanitizeInput(city);
-    if (university !== undefined) user.university = sanitizeInput(university);
+    if (city !== undefined) {
+      const cityValidation = await isValidCity(city);
+      if (!cityValidation.valid) {
+        throw new AppError(cityValidation.message || 'This city is not supported yet', 404);
+      }  
+      user.city = city;
+    }
 
     // Student fields (only for student role)
-    if (user.role === 'student') {
-      if (major !== undefined) user.major = sanitizeInput(major);
-      if (graduationYear !== undefined) user.graduationYear = sanitizeInput(graduationYear);
-      if (interests !== undefined) {
-        // Validate interests array
-        if (!Array.isArray(interests)) {
-          throw new AppError('Interests must be an array', 400);
+    if (user.role === VALID_ROLES[STUDENT_ROLE]) {
+      if (university !== undefined) {
+        const universityValidation = await isValidUniversity(university);
+        if (!universityValidation.valid) {
+          throw new AppError(universityValidation.message || 'This university is not supported yet', 404);
         }
-        user.interests = interests.map(i => sanitizeInput(i));
+        user.university = university;
       }
+
+      if (major !== undefined) {
+        const majorValidation = await isValidMajor(major);
+        if (!majorValidation.valid) {
+          throw new AppError(majorValidation.message || 'This major is not supported yet', 404);
+        }
+        user.major = major;
+      }
+
+      if (graduationYear !== undefined) {
+        const graduationYearValidation = isValidYear(graduationYear);
+        if (!graduationYearValidation.valid) {
+          throw new AppError(graduationYearValidation.message || 'Invalid graduation year', 400);
+        }
+        user.graduationYear = graduationYear;
+      }
+      
+      if (interests !== undefined && Array.isArray(interests) && interests.length !== 0) {
+        const interestsValidation = validateInterests(interests);
+        if (!interestsValidation.valid) {
+          throw new AppError(interestsValidation.message || 'Invalid interests', 400);
+        }
+        // Update interests to unique values
+        user.interests = interestsValidation.uniqueInterests;
+      }
+
       if (bio !== undefined) {
-        const sanitizedBio = sanitizeInput(bio);
-        if (sanitizedBio.length > MAX_BIO_LENGTH) {
+        if (bio.length > MAX_BIO_LENGTH) {
           throw new AppError(
             `Bio cannot exceed ${MAX_BIO_LENGTH} characters`,
             400
           );
         }
-        user.bio = sanitizedBio;
+        user.bio = bio;
       }
-      if (linkedInUrl !== undefined) user.linkedInUrl = sanitizeInput(linkedInUrl);
-    } else if (user.role === 'company') {
+
+      if (linkedInUrl !== undefined) {
+        user.linkedInUrl = linkedInUrl;
+      }
+    } else if (user.role === VALID_ROLES[COMPANY_ROLE]) {
       // Company fields (only for company role)
-      if (companyName !== undefined) user.companyName = sanitizeInput(companyName);
-      if (companyLocation !== undefined) user.companyLocation = sanitizeInput(companyLocation);
-      if (industry !== undefined) user.industry = sanitizeInput(industry);
-      if (description !== undefined) {
-        const sanitizedDesc = sanitizeInput(description);
-        if (sanitizedDesc.length > MAX_DESCRIPTION_LENGTH) {
-          throw new AppError(
-            `Description cannot exceed ${MAX_DESCRIPTION_LENGTH} characters`,
-            400
-          );
-        }
-        user.description = sanitizedDesc;
-      }
+      throw new AppError('Company role is currently disabled', 403);
     }
 
-    // Mark profile as complete if essential fields are present
-    if (user.phone && user.city && user.role) {
-      user.isProfileComplete = true;
-    }
+    // Mark profile as complete if all fields are present
+    user.isProfileComplete = isProfileComplete(user);
 
+    // user.updatedAt field is updated automatically
     // Save updated user
     await user.save();
 
@@ -384,11 +490,15 @@ export const changePassword = asyncHandler(
 
     const userId = (req.user as any).userId;
 
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
 
     // Validate required fields
-    if (!currentPassword || !newPassword) {
-      throw new AppError('Please provide current and new password', 400);
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      throw new AppError('Please provide all required fields (current and new passwords and the confirm)', 400);
+    }
+
+    if (newPassword != confirmPassword) {
+      throw new AppError('New and Confirm Passwords do not match', 400);
     }
 
     // Validate new password strength
@@ -411,8 +521,15 @@ export const changePassword = asyncHandler(
       throw new AppError('Current password is incorrect', 401);
     }
 
+    if (newPassword == currentPassword) {
+      throw new AppError('You already have the same password', 400);
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
     // Update password
-    user.password = newPassword;
+    user.password = hashedPassword;
     await user.save();
 
     // Send response
@@ -424,6 +541,7 @@ export const changePassword = asyncHandler(
 );
 
 /**
+ * DONE
  * @route   GET /api/auth/google/callback
  * @route   GET /api/auth/linkedin/callback
  * @desc    Handle OAuth callback
@@ -439,20 +557,38 @@ export const oauthCallback = asyncHandler(
     }
 
     // Generate tokens
-    const tokens = generateTokenPair(user);
+    const tokensGenerator = await generateTokenPair(user);
 
-    // Check if profile is complete
-    const isProfileComplete = user.isProfileComplete;
+    user.refreshToken = tokensGenerator.refreshTokenHashed;
+    user.refreshTokenExp = tokensGenerator.refreshTokenExpiration;
+    await user.save();
+
+    const ms = parseDurationWithDays(String(JWT_REFRESH_EXPIRES_IN));
+
+    res.cookie("refreshToken", tokensGenerator.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/api/auth/refresh",
+      maxAge: ms,
+    });
+
+
+    const params = new URLSearchParams({
+      token: tokensGenerator.accessToken,
+      isProfileComplete: String(user.isProfileComplete),
+    });
 
     // Redirect to frontend with tokens
     // In production, use a secure cookie or a temporary code exchange, but for now query params are okay for MVP
-    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&isProfileComplete=${isProfileComplete}`;
+    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?${params.toString()}`;
 
     res.redirect(redirectUrl);
   }
 );
 
 /**
+ * DONE
  * @route   GET /api/auth/verify-email/:token
  * @desc    Verify user email with token
  * @access  Public
@@ -469,10 +605,14 @@ export const verifyEmail = asyncHandler(
     const user = await User.findOne({
       emailVerificationToken: token,
       emailVerificationExpires: { $gt: Date.now() },
-    }).select('+emailVerificationToken +emailVerificationExpires');
+    }).select('+emailVerificationToken +emailVerificationExpires +isActive');
 
     if (!user) {
       throw new AppError('Invalid or expired verification token', 400);
+    }
+
+    if (!user.isActive) {
+      throw new AppError('Your account has been deactivated', 403);
     }
 
     // Mark email as verified
@@ -482,7 +622,22 @@ export const verifyEmail = asyncHandler(
     await user.save();
 
     // Generate tokens for automatic login
-    const tokens = generateTokenPair(user);
+    const tokensGenerator = await generateTokenPair(user);
+
+    user.refreshToken = tokensGenerator.refreshTokenHashed;
+    user.refreshTokenExp = tokensGenerator.refreshTokenExpiration;
+    await user.save();
+
+    // send RAW token in cookie
+    const ms = parseDurationWithDays(String(JWT_REFRESH_EXPIRES_IN));
+
+    res.cookie("refreshToken", tokensGenerator.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production"? "none" : "lax",
+      path: "/api/auth/refresh",
+      maxAge: ms,
+    });
 
     // Send response
     res.status(200).json({
@@ -490,13 +645,14 @@ export const verifyEmail = asyncHandler(
       message: 'Email verified successfully! You can now log in.',
       data: {
         user: user.getPublicProfile(),
-        ...tokens,
+        accessToken: tokensGenerator.accessToken,
       },
     });
   }
 );
 
 /**
+ * Done
  * @route   POST /api/auth/resend-verification
  * @desc    Resend verification email
  * @access  Public
@@ -511,6 +667,11 @@ export const resendVerification = asyncHandler(
 
     // Sanitize email
     const sanitizedEmail = sanitizeInput(email.toLowerCase());
+
+    // Validate email
+    if (!isValidEmail(email)) {
+      throw new AppError('Please provide a valid email address', 400);
+    }
 
     // Find user
     const user = await User.findOne({ email: sanitizedEmail });
@@ -549,3 +710,84 @@ export const resendVerification = asyncHandler(
     });
   }
 );
+
+const sha256hex = (raw: string) =>
+  crypto.createHash("sha256").update(raw, "utf8").digest("hex");
+
+/**
+ * DONE
+ * @route   POST /api/auth/refresh
+ * @desc    Refresh access token
+ * @access  Public
+ */
+export const refreshAccessToken = asyncHandler(async (req, res) => {
+  const refreshToken = req.cookies?.refreshToken;
+  console.log(refreshToken);
+
+  if (!refreshToken || typeof refreshToken !== "string") {
+    throw new AppError("Refresh token is required", 401);
+  }
+
+  const refreshTokenHashed = sha256hex(refreshToken);
+
+  // Find user by hashed refresh token
+  const user = await User.findOne({ refreshToken: refreshTokenHashed }).select('+refreshToken +refreshTokenExp');
+
+  if (!user) {
+    throw new AppError("Invalid refresh token", 401);
+  }
+
+  if (!user.refreshTokenExp || user.refreshTokenExp.getTime() < Date.now()) {
+    throw new AppError("Refresh token expired. Please login again.", 401);
+  }
+
+  // Issue new access token & rotate refresh token (stronger security)
+  const tokensGenerator = await generateTokenPair(user);
+
+  user.refreshToken = tokensGenerator.refreshTokenHashed;
+  user.refreshTokenExp = tokensGenerator.refreshTokenExpiration;
+  await user.save();
+
+  // send RAW token in cookie
+  const ms = parseDurationWithDays(String(JWT_REFRESH_EXPIRES_IN));
+
+  res.cookie("refreshToken", tokensGenerator.refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production"? "none" : "lax",
+    path: "/api/auth/refresh",
+    maxAge: ms,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: { accessToken: tokensGenerator.accessToken },
+  });
+});
+
+/**
+ * DONE
+ * @route   POST /api/auth/logout
+ * @desc    loguot clears refresh token info
+ * @access  Public
+ */
+export const logout = asyncHandler(async (req, res) => {
+  const refreshToken = req.cookies?.refreshToken;
+
+  if (refreshToken) {
+    const hashed = sha256hex(refreshToken);
+    await User.updateOne(
+      { refreshToken: hashed },
+      { $set: { refreshToken: null, refreshTokenExp: null } }
+    );
+  }
+
+  res.clearCookie("refreshToken", {
+    path: "/api/auth/refresh",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+
+  res.status(200).json({ success: true, message: "Logged out" });
+});
+

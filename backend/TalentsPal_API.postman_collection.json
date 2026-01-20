@@ -1,0 +1,1159 @@
+{
+	"info": {
+		"_postman_id": "talentspal-api-collection",
+		"name": "TalentsPal API",
+		"description": "Complete API collection for TalentsPal backend",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Signup",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"confirmPassword\": \"SecurePass123!\",\n  \"role\": \"student\",\n  \"phone\": \"+1234567890\",\n  \"city\": \"New York\",\n  \"university\": \"Example University\",\n  \"major\": \"Computer Science\",\n  \"graduationYear\": \"2025\",\n  \"interests\": [\"Web Development\", \"AI\"],\n  \"linkedInUrl\": \"https://linkedin.com/in/johndoe\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/signup",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "signup"]
+						},
+						"description": "Register a new user account. Company registration is currently disabled."
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.accessToken) {",
+									"        pm.environment.set('accessToken', jsonData.data.accessToken);",
+									"        pm.environment.set('refreshToken', jsonData.data.refreshToken);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Authenticate user and get access/refresh tokens"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "me"]
+						},
+						"description": "Get current authenticated user profile"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"John Updated\",\n  \"phone\": \"+1234567890\",\n  \"city\": \"Boston\",\n  \"university\": \"MIT\",\n  \"major\": \"Software Engineering\",\n  \"graduationYear\": \"2026\",\n  \"interests\": [\"Web Development\", \"AI\", \"Machine Learning\"],\n  \"bio\": \"Passionate developer\",\n  \"linkedInUrl\": \"https://linkedin.com/in/johndoe\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/update-profile",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "update-profile"]
+						},
+						"description": "Update user profile information"
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"currentPassword\": \"SecurePass123!\",\n  \"newPassword\": \"NewSecurePass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/change-password",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "change-password"]
+						},
+						"description": "Change user password"
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Email",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/verify-email/:token",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "verify-email", ":token"],
+							"variable": [
+								{
+									"key": "token",
+									"value": "verification-token-here"
+								}
+							]
+						},
+						"description": "Verify user email with verification token"
+					},
+					"response": []
+				},
+				{
+					"name": "Resend Verification Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"john.doe@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/resend-verification",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "resend-verification"]
+						},
+						"description": "Resend verification email"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Profile Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "profileImage",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/upload-profile-image",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "upload-profile-image"]
+						},
+						"description": "Upload profile image (multipart/form-data)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Profile Image",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/delete-profile-image",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "delete-profile-image"]
+						},
+						"description": "Delete user profile image"
+					},
+					"response": []
+				},
+				{
+					"name": "Google OAuth",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/google",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "google"]
+						},
+						"description": "Initiate Google OAuth login (redirects to Google)"
+					},
+					"response": []
+				},
+				{
+					"name": "LinkedIn OAuth",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/linkedin",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "linkedin"]
+						},
+						"description": "Initiate LinkedIn OAuth login (redirects to LinkedIn)"
+					},
+					"response": []
+				},
+				{
+					"name": "Test Auth Routes",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/test",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "test"]
+						},
+						"description": "Test endpoint to verify auth routes are working"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication and user management endpoints"
+		},
+		{
+			"name": "Questions",
+			"item": [
+				{
+					"name": "Get Random Questions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/questions/random?category=backend&count=10&difficulty=medium",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "questions", "random"],
+							"query": [
+								{
+									"key": "category",
+									"value": "backend",
+									"description": "Required: 'backend' or 'frontend'"
+								},
+								{
+									"key": "count",
+									"value": "10",
+									"description": "Optional: Number of questions (default: 10)"
+								},
+								{
+									"key": "difficulty",
+									"value": "medium",
+									"description": "Optional: 'easy', 'medium', or 'hard'"
+								}
+							]
+						},
+						"description": "Get random questions for a test"
+					},
+					"response": []
+				},
+				{
+					"name": "Submit Answers",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"answers\": [\n    {\n      \"questionId\": \"question-id-1\",\n      \"answer\": \"Option A\"\n    },\n    {\n      \"questionId\": \"question-id-2\",\n      \"answer\": \"Option B\"\n    }\n  ],\n  \"category\": \"backend\",\n  \"startedAt\": \"2024-01-01T00:00:00.000Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/questions/submit",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "questions", "submit"]
+						},
+						"description": "Submit answers and get test results"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Question by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/questions/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "questions", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "question-id-here"
+								}
+							]
+						},
+						"description": "Get a single question by ID (without correct answer)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Test History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/questions/history?category=backend&page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "questions", "history"],
+							"query": [
+								{
+									"key": "category",
+									"value": "backend",
+									"description": "Optional: 'backend' or 'frontend'"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Optional: Page number"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Optional: Items per page"
+								}
+							]
+						},
+						"description": "Get user's test history"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Test Attempt by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/questions/attempt/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "questions", "attempt", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "attempt-id-here"
+								}
+							]
+						},
+						"description": "Get single test attempt details"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/questions/stats/user?category=backend",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "questions", "stats", "user"],
+							"query": [
+								{
+									"key": "category",
+									"value": "backend",
+									"description": "Optional: 'backend' or 'frontend'"
+								}
+							]
+						},
+						"description": "Get user's statistics"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Leaderboard",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/questions/leaderboard?category=backend&limit=100",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "questions", "leaderboard"],
+							"query": [
+								{
+									"key": "category",
+									"value": "backend",
+									"description": "Default: 'backend'"
+								},
+								{
+									"key": "limit",
+									"value": "100",
+									"description": "Optional: Max 100"
+								}
+							]
+						},
+						"description": "Get leaderboard"
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Get All Questions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/questions/admin/all?category=backend&difficulty=medium&page=1&limit=20&includeInactive=false",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "questions", "admin", "all"],
+							"query": [
+								{
+									"key": "category",
+									"value": "backend",
+									"description": "Optional: 'backend' or 'frontend'"
+								},
+								{
+									"key": "difficulty",
+									"value": "medium",
+									"description": "Optional: 'easy', 'medium', or 'hard'"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "includeInactive",
+									"value": "false",
+									"description": "Optional: Include inactive questions"
+								}
+							]
+						},
+						"description": "Get all questions with filters (admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Get Question Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/questions/admin/stats",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "questions", "admin", "stats"]
+						},
+						"description": "Get question statistics (admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Create Question",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"questionId\": 1,\n  \"category\": \"backend\",\n  \"question\": \"What is Node.js?\",\n  \"options\": [\n    \"A JavaScript runtime\",\n    \"A database\",\n    \"A framework\",\n    \"A library\"\n  ],\n  \"correctAnswer\": \"A JavaScript runtime\",\n  \"difficulty\": \"easy\",\n  \"tags\": [\"nodejs\", \"javascript\"],\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/questions/admin/create",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "questions", "admin", "create"]
+						},
+						"description": "Create a new question (admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Update Question",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"questionId\": 1,\n  \"category\": \"backend\",\n  \"question\": \"What is Node.js?\",\n  \"options\": [\n    \"A JavaScript runtime\",\n    \"A database\",\n    \"A framework\",\n    \"A library\"\n  ],\n  \"correctAnswer\": \"A JavaScript runtime\",\n  \"difficulty\": \"medium\",\n  \"tags\": [\"nodejs\", \"javascript\", \"backend\"],\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/questions/admin/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "questions", "admin", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "question-id-here"
+								}
+							]
+						},
+						"description": "Update a question (admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Delete Question",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/questions/admin/:id?permanent=false",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "questions", "admin", ":id"],
+							"query": [
+								{
+									"key": "permanent",
+									"value": "false",
+									"description": "Set to 'true' for hard delete"
+								}
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "question-id-here"
+								}
+							]
+						},
+						"description": "Delete a question (soft delete by default, use ?permanent=true for hard delete)"
+					},
+					"response": []
+				}
+			],
+			"description": "Question and test management endpoints"
+		},
+		{
+			"name": "Practice",
+			"item": [
+				{
+					"name": "Get Practice Questions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/practice/questions?category=backend&difficulty=medium&company=Google&tags=javascript,nodejs&limit=20&page=1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "practice", "questions"],
+							"query": [
+								{
+									"key": "category",
+									"value": "backend",
+									"description": "Optional: 'backend' or 'frontend'"
+								},
+								{
+									"key": "difficulty",
+									"value": "medium",
+									"description": "Optional: 'easy', 'medium', or 'hard'"
+								},
+								{
+									"key": "company",
+									"value": "Google",
+									"description": "Optional: Filter by company"
+								},
+								{
+									"key": "tags",
+									"value": "javascript,nodejs",
+									"description": "Optional: Comma-separated tags"
+								},
+								{
+									"key": "limit",
+									"value": "20",
+									"description": "Optional: Max 50"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Get practice questions with advanced filters"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Companies",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/practice/companies",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "practice", "companies"]
+						},
+						"description": "Get list of available companies"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tags",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/practice/tags",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "practice", "tags"]
+						},
+						"description": "Get list of available tags with counts"
+					},
+					"response": []
+				},
+				{
+					"name": "Check Practice Answer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"questionId\": \"question-id-here\",\n  \"userAnswer\": \"Option A\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/practice/check-answer",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "practice", "check-answer"]
+						},
+						"description": "Check answer for practice mode"
+					},
+					"response": []
+				}
+			],
+			"description": "Practice mode endpoints"
+		},
+		{
+			"name": "Challenges",
+			"item": [
+				{
+					"name": "Get Today's Challenge",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/challenges/today",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "challenges", "today"]
+						},
+						"description": "Get or create today's daily challenge"
+					},
+					"response": []
+				},
+				{
+					"name": "Submit Challenge Answer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userAnswer\": \"Option A\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/challenges/submit",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "challenges", "submit"]
+						},
+						"description": "Submit answer for today's challenge"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Streak",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/challenges/streak",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "challenges", "streak"]
+						},
+						"description": "Get user streak information"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Challenge History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/challenges/history?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "challenges", "history"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Optional: Max 50"
+								}
+							]
+						},
+						"description": "Get challenge history for user"
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Today's Challenge",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/challenges/reset",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "challenges", "reset"]
+						},
+						"description": "Reset today's challenge (for testing)"
+					},
+					"response": []
+				}
+			],
+			"description": "Daily challenge endpoints"
+		},
+		{
+			"name": "Analytics",
+			"item": [
+				{
+					"name": "Get Student Analytics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/analytics/student",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "analytics", "student"]
+						},
+						"description": "Get student analytics"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Leaderboard",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/analytics/leaderboard",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "analytics", "leaderboard"]
+						},
+						"description": "Get leaderboard"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Leaderboard Position",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/analytics/leaderboard/position",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "analytics", "leaderboard", "position"]
+						},
+						"description": "Get user's leaderboard position"
+					},
+					"response": []
+				}
+			],
+			"description": "Analytics endpoints"
+		},
+		{
+			"name": "Achievements",
+			"item": [
+				{
+					"name": "Get User Achievements",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/achievements",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "achievements"]
+						},
+						"description": "Get all achievements for the user"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Achievement Progress",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{accessToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/achievements/progress",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "achievements", "progress"]
+						},
+						"description": "Get achievement progress"
+					},
+					"response": []
+				}
+			],
+			"description": "Achievement endpoints"
+		},
+		{
+			"name": "Metadata",
+			"item": [
+				{
+					"name": "Get Universities",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/metadata/universities",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "metadata", "universities"]
+						},
+						"description": "Get list of universities (cached)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Majors",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/metadata/majors",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "metadata", "majors"]
+						},
+						"description": "Get list of majors (cached)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Industries",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/metadata/industries",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "metadata", "industries"]
+						},
+						"description": "Get list of industries (cached)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Cities",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/metadata/cities",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "metadata", "cities"]
+						},
+						"description": "Get list of cities (cached)"
+					},
+					"response": []
+				}
+			],
+			"description": "Metadata endpoints (public, cached)"
+		},
+		{
+			"name": "Companies",
+			"item": [
+				{
+					"name": "Get Companies",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/companies",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "companies"]
+						},
+						"description": "Get list of companies"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Company by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/companies/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "companies", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "company-id-here"
+								}
+							]
+						},
+						"description": "Get company details by ID"
+					},
+					"response": []
+				}
+			],
+			"description": "Company endpoints"
+		},
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["health"]
+						},
+						"description": "Health check endpoint"
+					},
+					"response": []
+				}
+			],
+			"description": "Health check endpoint"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

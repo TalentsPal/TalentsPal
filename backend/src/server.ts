@@ -21,6 +21,7 @@ import analyticsRoutes from './routes/analyticsRoutes';
 import practiceRoutes from './routes/practiceRoutes';
 import { mongoSanitize } from './middleware/security';
 import { compressionMiddleware, cacheControl, requestId, healthCheck } from './middleware/production';
+import cookieParser from "cookie-parser";
 
 // Initialize Express app
 const app: Application = express();
@@ -92,6 +93,8 @@ if (process.env.NODE_ENV === 'production') {
   app.use(cacheControl); // Cache control headers
 }
 app.use(requestId); // Request tracking
+
+app.use(cookieParser());
 
 // Body parser with size limits
 const BODY_SIZE_LIMIT = '10mb';

@@ -1,5 +1,6 @@
 import * as jwt from 'jsonwebtoken';
 import { IUser } from '../models/User';
+import crypto from "crypto";
 
 /**
  * JWT Payload Interface
@@ -19,7 +20,7 @@ const DEFAULT_REFRESH_TOKEN_EXPIRY = '30d';
 
 const JWT_SECRET: jwt.Secret = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
 const JWT_EXPIRES_IN: string | number = process.env.JWT_EXPIRES_IN || DEFAULT_ACCESS_TOKEN_EXPIRY;
-const JWT_REFRESH_EXPIRES_IN: string | number =
+export const JWT_REFRESH_EXPIRES_IN: string | number =
   process.env.JWT_REFRESH_EXPIRES_IN || DEFAULT_REFRESH_TOKEN_EXPIRY;
 
 /**
@@ -38,19 +39,17 @@ export const generateAccessToken = (user: IUser): string => {
 };
 
 /**
- * Generate Refresh Token
- * @param user - User document
- * @returns JWT refresh token
+ * - generate 32 random bytes
+ * - raw token = hex(randomBytes)
+ * - hashed = sha256(raw token) as hex (store in DB)
  */
-export const generateRefreshToken = (user: IUser): string => {
-  const payload = {
-    userId: user._id.toString(),
-    email: user.email,
-    role: user.role,
-  };
+export function generateRefreshToken(): { raw: string; hashed: string } {
+  const buf = crypto.randomBytes(32);
+  const raw = buf.toString("hex"); // send to client
 
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN } as jwt.SignOptions);
-};
+  const hashed = crypto.createHash("sha256").update(raw, "utf8").digest("hex"); // store in DB
+  return { raw, hashed };
+}
 
 /**
  * Verify JWT Token
@@ -66,16 +65,68 @@ export const verifyToken = (token: string): IJWTPayload | null => {
   }
 };
 
+export interface RefreshTokensResult {
+  accessToken: string;
+  refreshToken: string;         // raw (send to client) OR "" if not new
+  refreshTokenHashed: string;  // store in DB OR "" if not new
+  refreshTokenExpiration: Date;
+}
+
 /**
  * Generate Token Pair (Access + Refresh)
  * @param user - User document
- * @returns Object containing access and refresh tokens
+ * @returns RefreshTokensResult Object
  */
-export const generateTokenPair = (
+export async function generateTokenPair(
   user: IUser
-): { accessToken: string; refreshToken: string } => {
+): Promise<RefreshTokensResult> {
+  // Access token always
+  let accessToken: string;
+  try {
+    accessToken = generateAccessToken(user);
+  } catch (err) {
+    // mimic "internal server error"
+    throw new Error(`Failed to generate access token: ${(err as Error).message}`);
+  }
+
+  const now = new Date();
+  let refreshTokenExpiration: Date;
+  try {
+    const ms = parseDurationWithDays(JWT_REFRESH_EXPIRES_IN.toString());
+    refreshTokenExpiration = new Date(now.getTime() + ms);
+  } catch (err) {
+    throw new Error(`Invalid refresh duration: ${(err as Error).message}`);
+  }
+
+  const { raw, hashed } = generateRefreshToken();
+
   return {
-    accessToken: generateAccessToken(user),
-    refreshToken: generateRefreshToken(user),
+    accessToken,
+    refreshToken: raw,
+    refreshTokenHashed: hashed,
+    refreshTokenExpiration
   };
 };
+
+/**
+ * Parse durations like: "15m", "1h", "7d", "30d", "2w"
+ */
+export function parseDurationWithDays(input: string): number {
+  const s = input.trim().toLowerCase();
+  const m = s.match(/^(\d+)\s*(ms|s|m|h|d|w)$/);
+  if (!m) throw new Error(`Invalid duration: ${input}`);
+
+  const value = Number(m[1]);
+  const unit = m[2];
+
+  const multipliers: Record<string, number> = {
+    ms: 1,
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+    w: 7 * 24 * 60 * 60 * 1000,
+  };
+
+  return value * multipliers[unit];
+}

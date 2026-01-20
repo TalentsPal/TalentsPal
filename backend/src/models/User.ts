@@ -1,6 +1,15 @@
 import mongoose, { Document, Schema, CallbackError } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+export const STUDENT_ROLE = 0;
+export const COMPANY_ROLE = 1;
+export const ADMIN_ROLE = 2;
+export const VALID_ROLES = [
+	'student',
+	'company',
+	'admin',
+];
+
 /**
  * User Interface - Defines the structure of a User document
  */
@@ -11,7 +20,7 @@ export interface IUser extends Document {
   fullName: string;
   email: string;
   password?: string;
-  role: 'student' | 'company' | 'admin';
+  role: typeof VALID_ROLES[number];
   phone?: string;
   city?: string;
   university?: string;
@@ -41,6 +50,10 @@ export interface IUser extends Document {
   companyLocation?: string;
   industry?: string;
   description?: string;
+
+  // Refresh Token
+  refreshToken?: string;
+  refreshTokenExp?: Date;
 
   createdAt: Date;
   updatedAt: Date;
@@ -92,23 +105,28 @@ const UserSchema = new Schema<IUser>(
     role: {
       type: String,
       enum: {
-        values: ['student', 'company', 'admin'],
-        message: 'Role must be either student, company, or admin',
+        values: VALID_ROLES,
+        message: 'Role must be one of the following: ' + VALID_ROLES.join(', '),
       },
       default: 'student',
       required: true,
     },
     phone: {
       type: String,
+      required: true,
       trim: true,
     },
     city: {
       type: String,
+      required: true,
       trim: true,
+      minlength: [2, 'City must be at least 2 characters'],
+      maxlength: [50, 'City cannot exceed 50 characters'],
     },
     university: {
       type: String,
       trim: true,
+      maxlength: [100, 'University cannot exceed 100 characters'],
     },
     isEmailVerified: {
       type: Boolean,
@@ -143,6 +161,7 @@ const UserSchema = new Schema<IUser>(
     major: {
       type: String,
       trim: true,
+      maxlength: [50, 'Major cannot exceed 50 characters'],
     },
     graduationYear: {
       type: String,
@@ -162,6 +181,7 @@ const UserSchema = new Schema<IUser>(
     companyName: {
       type: String,
       trim: true,
+      maxlength: [50, 'Company Name cannot exceed 50 characters'],
     },
     companyEmail: {
       type: String,
@@ -175,10 +195,22 @@ const UserSchema = new Schema<IUser>(
     industry: {
       type: String,
       trim: true,
+      maxlength: [50, 'Industry cannot exceed 50 characters'],
     },
     description: {
       type: String,
       trim: true,
+      maxlength: [1000, 'Description cannot exceed 50 characters'],
+    },
+
+    // Refresh Token
+    refreshToken: {
+      type: String,
+      select: false,
+    },
+    refreshTokenExp: {
+      type: Date,
+      select: false,
     },
   },
   {
@@ -189,16 +221,16 @@ const UserSchema = new Schema<IUser>(
 /**
  * Pre-save Hook - Hash password before saving to database
  */
-UserSchema.pre('save', async function () {
-  // Only hash password if it exists and has been modified
-  if (!this.password || !this.isModified('password')) {
-    return;
-  }
+// UserSchema.pre('save', async function () {
+//   // Only hash password if it exists and has been modified
+//   if (!this.password || !this.isModified('password')) {
+//     return;
+//   }
 
-  // Generate salt and hash password
-  const salt = await bcrypt.genSalt(12);
-  this.password = await bcrypt.hash(this.password, salt);
-});
+//   // Generate salt and hash password
+//   const salt = await bcrypt.genSalt(12);
+//   this.password = await bcrypt.hash(this.password, salt);
+// });
 
 /**
  * Instance Method - Compare password for authentication
@@ -225,7 +257,6 @@ UserSchema.methods.getPublicProfile = function (): Partial<IUser> {
     role: this.role,
     phone: this.phone,
     city: this.city,
-    university: this.university,
     isEmailVerified: this.isEmailVerified,
     isProfileComplete: this.isProfileComplete,
     profileImage: this.profileImage,
@@ -234,16 +265,17 @@ UserSchema.methods.getPublicProfile = function (): Partial<IUser> {
   };
 
   // Add role-specific fields
-  if (this.role === 'student') {
+  if (this.role === VALID_ROLES[STUDENT_ROLE]) {
     return {
       ...baseProfile,
       linkedInUrl: this.linkedInUrl,
+      university: this.university,
       major: this.major,
       graduationYear: this.graduationYear,
       interests: this.interests,
       bio: this.bio,
     };
-  } else if (this.role === 'company') {
+  } else if (this.role === VALID_ROLES[COMPANY_ROLE]) {
     return {
       ...baseProfile,
       companyName: this.companyName,
