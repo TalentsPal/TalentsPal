@@ -285,9 +285,10 @@ export const login = asyncHandler(
     // Generate tokens
     const tokensGenerator = await generateTokenPair(user);
 
-    user.refreshToken = tokensGenerator.refreshTokenHashed;
-    user.refreshTokenExp = tokensGenerator.refreshTokenExpiration;
-    await user.save();
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { refreshToken: tokensGenerator.refreshTokenHashed, refreshTokenExp: tokensGenerator.refreshTokenExpiration } }
+    );
 
     // send RAW token in cookie
     const ms = parseDurationWithDays(String(JWT_REFRESH_EXPIRES_IN));
@@ -630,18 +631,23 @@ export const verifyEmail = asyncHandler(
       throw new AppError('Your account has been deactivated', 403);
     }
 
-    // Mark email as verified
-    user.isEmailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
-    await user.save();
-
     // Generate tokens for automatic login
     const tokensGenerator = await generateTokenPair(user);
 
-    user.refreshToken = tokensGenerator.refreshTokenHashed;
-    user.refreshTokenExp = tokensGenerator.refreshTokenExpiration;
-    await user.save();
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          isEmailVerified: true,
+          refreshToken: tokensGenerator.refreshTokenHashed,
+          refreshTokenExp: tokensGenerator.refreshTokenExpiration,
+        },
+        $unset: {
+          emailVerificationToken: "",
+          emailVerificationExpires: "",
+        },
+      }
+    );
 
     // send RAW token in cookie
     const ms = parseDurationWithDays(String(JWT_REFRESH_EXPIRES_IN));

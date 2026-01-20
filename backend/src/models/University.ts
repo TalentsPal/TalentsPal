@@ -22,6 +22,7 @@ const UniversitySchema = new Schema<IUniversity>(
       type: String,
       required: [true, 'University name is required'],
       unique: true,
+      index: true,
       trim: true,
     },
     country: {

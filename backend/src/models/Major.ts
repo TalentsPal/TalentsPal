@@ -21,6 +21,7 @@ const MajorSchema = new Schema<IMajor>(
       type: String,
       required: [true, 'Major name is required'],
       unique: true,
+      index: true,
       trim: true,
     },
     category: {

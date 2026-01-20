@@ -21,6 +21,7 @@ const CitySchema = new Schema<ICity>(
       type: String,
       required: [true, 'City name is required'],
       unique: true,
+      index: true,
       trim: true,
     },
     country: {

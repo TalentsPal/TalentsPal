@@ -20,6 +20,7 @@ const IndustrySchema = new Schema<IIndustry>(
       type: String,
       required: [true, 'Industry name is required'],
       unique: true,
+      index: true,
       trim: true,
     },
     isActive: {

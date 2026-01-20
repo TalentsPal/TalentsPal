@@ -79,6 +79,7 @@ const UserSchema = new Schema<IUser>(
       type: String,
       required: [true, 'Email is required'],
       unique: true,
+      index: true,
       lowercase: true,
       trim: true,
       match: [

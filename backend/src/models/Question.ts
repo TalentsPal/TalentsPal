@@ -26,6 +26,7 @@ const questionSchema = new Schema<IQuestion>(
       type: Number,
       required: [true, 'Question ID is required'],
       unique: true,
+      index: true,
       min: [1, 'Question ID must be positive'],
     },
     category: {
