@@ -80,11 +80,13 @@ export const signup = asyncHandler(
       throw new AppError('Please provide a valid email address', 400);
     }
 
-    // Check if email is already in use
-    const emailValidation = await ensureEmailIsNotFound(email);
-    if (!emailValidation.valid) {
-      throw new AppError(emailValidation.message || 'An account with this email already found', 409);
-    }    
+    const checks = await Promise.all([
+      isValidCity(city),
+      userRole === VALID_ROLES[STUDENT_ROLE] && university ? isValidUniversity(university) : Promise.resolve({ valid: true, message: "" }),
+      userRole === VALID_ROLES[STUDENT_ROLE] && major ? isValidMajor(major) : Promise.resolve({ valid: true, message: "" }),
+    ]);
+    
+    const [cityValidation, universityValidation, majorValidation] = checks;
 
     // Validate password strength
     const passwordValidation = isValidPassword(password);
@@ -109,7 +111,6 @@ export const signup = asyncHandler(
     }
 
     // Validate city
-    const cityValidation = await isValidCity(city);
     if (!cityValidation.valid) {
       throw new AppError(cityValidation.message || 'This city is not supported yet', 404);
     }   
@@ -117,7 +118,7 @@ export const signup = asyncHandler(
     if (userRole == VALID_ROLES[STUDENT_ROLE]){
       // Validate university
       if (university) {
-        const universityValidation = await isValidUniversity(university);
+        // const universityValidation = await isValidUniversity(university);
         if (!universityValidation.valid) {
           throw new AppError(universityValidation.message || 'This university is not supported yet', 404);
         }
@@ -125,7 +126,6 @@ export const signup = asyncHandler(
 
       // Validate major
       if (major) {
-        const majorValidation = await isValidMajor(major);
         if (!majorValidation.valid) {
           throw new AppError(majorValidation.message || 'This major is not supported yet', 404);
         }
@@ -193,14 +193,14 @@ export const signup = asyncHandler(
     };
 
     // Create new user
-    const user = await User.create(userData);
-
-    // Send verification email
+    let user;
     try {
-      await sendVerificationEmail(email, fullName, verificationToken);
-    } catch (error) {
-      console.error('Failed to send verification email:', error);
-      // Don't fail the signup if email fails, but log it
+      user = await User.create(userData);
+    } catch (err: any) {
+      if (err?.code === 11000 && err?.keyPattern?.email) {
+        throw new AppError("An account with this email already found", 409);
+      }
+      throw err;
     }
 
     // Send response (no tokens until email is verified)
@@ -217,6 +217,21 @@ export const signup = asyncHandler(
         },
       },
     });
+
+    setImmediate(async () => {
+      // Send verification email
+      try {
+        await Promise.race([
+          sendVerificationEmail(email, fullName, verificationToken),
+          new Promise((_, rej) => setTimeout(() => rej(new Error("Email timeout")), 8000)),
+        ]);
+      } catch (error) {
+        console.error('Failed to send verification email:', error);
+        // Don't fail the signup if email fails, but log it
+      }
+    });
+
+    return;
   }
 );
 

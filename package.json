@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "amqplib": "^0.10.9",
     "express-validator": "^7.3.1"
   }
 }
