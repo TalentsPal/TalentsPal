@@ -25,7 +25,9 @@ import {
 } from '../utils/email';
 import bcrypt from 'bcrypt';
 import crypto from "crypto";
-import { log } from 'console';
+import { cacheGetJSON, cacheSetJSON, cacheDel, meKey } from "../utils/redisCache";
+
+const ME_TTL_SECONDS = 60; // start with 60s (safe) then tune
 
 // Constants
 const VERIFICATION_TOKEN_EXPIRY_HOURS = 24;
@@ -327,20 +329,36 @@ export const getMe = asyncHandler(
 
     const userId = (req.user as any).userId;
 
-    // Find user by ID
+    // 1) Try cache
+    const key = meKey(userId);
+    const cached = await cacheGetJSON<any>(key);
+    if (cached) {
+      console.log("user's profile found in cache ✅");
+      res.status(200).json({ success: true, data: { user: cached }, cached: true });
+      return;
+    }
+
+    // 2) Get from DB
+    console.log("user's profile not found in cache ❌");
+    console.log("getting user's profile from DB...");
     const user = await User.findById(userId);
 
     if (!user) {
       throw new AppError('User not found', 404);
     }
 
-    // Send response
+    const userProfile = user.getPublicProfile();
+
+    // 3) Send response
     res.status(200).json({
       success: true,
       data: {
-        user: user.getPublicProfile(),
+        user: userProfile,
       },
     });
+
+    // 4) Save to cache
+    void cacheSetJSON(key, userProfile, ME_TTL_SECONDS);
   }
 );
 
@@ -482,6 +500,9 @@ export const updateProfile = asyncHandler(
     // Save updated user
     await user.save();
 
+    // invalidate user's profile in cache
+    await cacheDel(meKey(userId));
+
     // Send response
     res.status(200).json({
       success: true,
@@ -547,6 +568,9 @@ export const changePassword = asyncHandler(
     // Update password
     user.password = hashedPassword;
     await user.save();
+
+    // invalidate user's profile in cache
+    await cacheDel(meKey(userId));
 
     // Send response
     res.status(200).json({

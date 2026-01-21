@@ -3,6 +3,7 @@ import { uploadToCloudinary, deleteFromCloudinary } from '../config/cloudinary';
 import User from '../models/User';
 import { AppError } from '../utils/errorHandler';
 import { asyncHandler } from '../utils/errorHandler';
+import { cacheDel, meKey } from '../utils/redisCache';
 
 /**
  * @route   POST /api/auth/upload-profile-image
@@ -59,6 +60,9 @@ export const uploadProfileImage = asyncHandler(
       user.profileImage = result.url;
       await user.save();
 
+      // invalidate user's profile in cache
+    await cacheDel(meKey(userId));
+
       res.status(200).json({
         success: true,
         message: 'Profile image uploaded successfully',
@@ -110,6 +114,9 @@ export const deleteProfileImage = asyncHandler(
       // Remove from user document
       user.profileImage = undefined;
       await user.save();
+
+      // invalidate user's profile in cache
+    await cacheDel(meKey(userId));
 
       res.status(200).json({
         success: true,

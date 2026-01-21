@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken, IJWTPayload } from '../utils/jwt';
 import { AppError } from '../utils/errorHandler';
 import User from '../models/User';
+import { cacheGetJSON, cacheSetJSON } from '../utils/redisCache';
+
+const AUTH_TTL_SECONDS = 600;
 
 /**
  * Authentication Middleware - Verify JWT Token
@@ -29,16 +32,30 @@ export const authenticate = async (
     }
 
     // Check if user still exists and is active
-    const user = await User.findById(decoded.userId);
+    // 1) try cache
+    const key = `auth:${decoded.userId}`;
+    const cached = await cacheGetJSON<{ isActive: boolean }>(key);
 
-    if (!user) {
-      throw new AppError('User no longer exists', 401);
+    if (cached) {
+      console.log("user's authentication check found in cache ✅");
+      if (!cached.isActive) throw new AppError("User account is deactivated", 401);
+      req.user = decoded;
+      return next();
     }
 
-    if (!user.isActive) {
-      throw new AppError('User account is deactivated', 401);
-    }
+    // 2) cache miss -> DB
+    console.log("user's authentication check not found in cache ❌");
+    console.log("getting authentication check from DB...");
+    const user = await User.findOne(
+      {_id: decoded.userId},
+      {_id: 1, isActive: 1}
+    ).lean();
+    
+    if (!user) throw new AppError("User no longer exists", 401);
+    if (!user.isActive) throw new AppError("User account is deactivated", 401);
 
+    // 3) cache it
+    void cacheSetJSON(key, { isActive: user.isActive }, AUTH_TTL_SECONDS); // 10 min
     // Attach user data to request
     req.user = decoded;
 

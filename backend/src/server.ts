@@ -9,6 +9,7 @@ dotenv.config();
 
 import passport from 'passport';
 import connectDB from './config/db';
+import { connectRedis } from './config/redis';
 import { errorHandler } from './utils/errorHandler';
 import './config/passport'; // Initialize passport strategies
 import authRoutes from './routes/authRoutes';
@@ -28,6 +29,9 @@ const app: Application = express();
 
 // Connect to MongoDB
 connectDB();
+
+// Connect to Redis
+connectRedis();
 
 /**
  * Middleware Configuration
