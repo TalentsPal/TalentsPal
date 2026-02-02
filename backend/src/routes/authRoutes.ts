@@ -35,7 +35,7 @@ const generalLimiter = rateLimiter(RATE_LIMIT_WINDOW_MS, GENERAL_MAX_REQUESTS);
  */
 router.post('/signup', authLimiter, signup);
 router.post('/login', authLimiter, login);
-router.post('/logout', authLimiter, logout);
+router.post('/logout', authenticate, logout);
 
 // Email verification routes
 router.get('/verify-email/:token', generalLimiter, verifyEmail);
@@ -79,6 +79,6 @@ router.put('/change-password', authenticate, changePassword);
 router.post('/upload-profile-image', authenticate, upload.single('profileImage'), uploadProfileImage);
 router.delete('/delete-profile-image', authenticate, deleteProfileImage);
 
-router.post("/refresh", refreshAccessToken);
+router.post("/refresh", authLimiter, refreshAccessToken);
 
 export default router;

@@ -431,9 +431,16 @@ export const updateProfile = asyncHandler(
         user.phone = phone;
       }
     }
+
+    const checks = await Promise.all([
+      city ? isValidCity(city): Promise.resolve({ valid: true, message: "" }),
+      user.role === VALID_ROLES[STUDENT_ROLE] && university ? isValidUniversity(university) : Promise.resolve({ valid: true, message: "" }),
+      user.role === VALID_ROLES[STUDENT_ROLE] && major ? isValidMajor(major) : Promise.resolve({ valid: true, message: "" }),
+    ]);
+    
+    const [cityValidation, universityValidation, majorValidation] = checks;
     
     if (city !== undefined) {
-      const cityValidation = await isValidCity(city);
       if (!cityValidation.valid) {
         throw new AppError(cityValidation.message || 'This city is not supported yet', 404);
       }  
@@ -443,7 +450,6 @@ export const updateProfile = asyncHandler(
     // Student fields (only for student role)
     if (user.role === VALID_ROLES[STUDENT_ROLE]) {
       if (university !== undefined) {
-        const universityValidation = await isValidUniversity(university);
         if (!universityValidation.valid) {
           throw new AppError(universityValidation.message || 'This university is not supported yet', 404);
         }
@@ -451,7 +457,6 @@ export const updateProfile = asyncHandler(
       }
 
       if (major !== undefined) {
-        const majorValidation = await isValidMajor(major);
         if (!majorValidation.valid) {
           throw new AppError(majorValidation.message || 'This major is not supported yet', 404);
         }
