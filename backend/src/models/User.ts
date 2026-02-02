@@ -1,5 +1,6 @@
 import mongoose, { Document, Schema, CallbackError } from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { refreshAccessToken } from 'controllers/authController';
 
 export const STUDENT_ROLE = 0;
 export const COMPANY_ROLE = 1;
@@ -300,6 +301,7 @@ UserSchema.index({ isEmailVerified: 1, role: 1 }); // Filter verified users by r
 UserSchema.index({ email:1, isEmailVerified: 1 }); // Filter verified users by email and isEmailVerified
 UserSchema.index({ university: 1, major: 1 }); // Student search by university/major
 UserSchema.index({ industry: 1 }); // Company search by industry
+UserSchema.index({ refreshToken: 1 }); // User search by refreshToken
 UserSchema.index({ emailVerificationToken: 1 }, { sparse: true }); // Email verification lookup
 
 /**
