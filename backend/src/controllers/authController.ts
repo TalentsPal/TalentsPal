@@ -25,7 +25,7 @@ import {
 } from '../utils/email';
 import bcrypt from 'bcrypt';
 import crypto from "crypto";
-import { cacheGetJSON, cacheSetJSON, cacheDel, meKey } from "../utils/redisCache";
+import { cacheGetJSON, cacheSetJSON, cacheDel, meKey, authKey } from "../utils/redisCache";
 
 const ME_TTL_SECONDS = 60; // start with 60s (safe) then tune
 
@@ -572,10 +572,15 @@ export const changePassword = asyncHandler(
 
     // Update password
     user.password = hashedPassword;
+    user.refreshToken = undefined;
+    user.refreshTokenExp = undefined;
     await user.save();
 
     // invalidate user's profile in cache
-    await cacheDel(meKey(userId));
+    await Promise.all([
+      cacheDel(meKey(userId)),
+      cacheDel(authKey(userId)),
+    ]);
 
     // Send response
     res.status(200).json({
