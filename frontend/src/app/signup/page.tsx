@@ -26,98 +26,17 @@ import MultiSelect from '@/components/ui/MultiSelect';
 import { SignupFormData, UserRole, FormErrors } from '@/types';
 import { validateSignupForm, getPasswordStrength } from '@/utils/validation';
 import { fetchUniversities, fetchMajors, fetchIndustries, fetchCities } from '@/services/metadataService';
+import { getCountries, getCountryCallingCode } from 'libphonenumber-js';
 
-const PALESTINIAN_CITIES = [
-  'Jerusalem',
-  'Ramallah',
-  'Bethlehem',
-  'Hebron',
-  'Nablus',
-  'Jenin',
-  'Tulkarm',
-  'Qalqilya',
-  'Salfit',
-  'Jericho',
-  'Gaza',
-  'Khan Yunis',
-  'Rafah',
-  'Deir al-Balah',
-  'Jabalia',
-];
-
-const UNIVERSITIES = [
-  'Birzeit University',
-  'An-Najah National University',
-  'Bethlehem University',
-  'Hebron University',
-  'Palestine Polytechnic University',
-  'Palestine Technical University',
-  'Al-Quds University',
-  'Islamic University of Gaza',
-  'Al-Azhar University',
-  'University College of Applied Sciences',
-  'Arab American University',
-  'Other',
-];
-
-const INDUSTRIES = [
-  'Technology & IT',
-  'Finance & Banking',
-  'Healthcare',
-  'Education',
-  'Manufacturing',
-  'Retail',
-  'Construction',
-  'Telecommunications',
-  'Tourism & Hospitality',
-  'Agriculture',
-  'Media & Marketing',
-  'NGO & Development',
-  'Other',
-];
+const countries = getCountries().map((iso) => ({
+  iso,
+  dial: `+${getCountryCallingCode(iso)}`,
+}));
 
 const INTEREST_OPTIONS = [
   { value: 'training', label: 'Training & Internships' },
   { value: 'job', label: 'Full-time Employment' },
   { value: 'interview-prep', label: 'Interview Preparation' },
-];
-
-const MAJORS = [
-  'Computer Science',
-  'Information Technology',
-  'Software Engineering',
-  'Computer Engineering',
-  'Business Administration',
-  'Accounting',
-  'Finance',
-  'Marketing',
-  'Economics',
-  'Civil Engineering',
-  'Mechanical Engineering',
-  'Electrical Engineering',
-  'Industrial Engineering',
-  'Architecture',
-  'Medicine',
-  'Nursing',
-  'Pharmacy',
-  'Dentistry',
-  'Law',
-  'English Language',
-  'Arabic Language',
-  'Translation',
-  'Journalism',
-  'Media & Communication',
-  'Graphic Design',
-  'Interior Design',
-  'Psychology',
-  'Social Work',
-  'Education',
-  'Mathematics',
-  'Physics',
-  'Chemistry',
-  'Biology',
-  'Agriculture',
-  'Other',
 ];
 
 export default function SignupPage() {
@@ -139,6 +58,7 @@ export default function SignupPage() {
     password: '',
     confirmPassword: '',
     role: 'student',
+    countryCode: '',
     phone: '',
     city: '',
     university: '',
@@ -464,7 +384,19 @@ export default function SignupPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Select
+                id="countryCode"
+                name="countryCode"
+                label="Country Code"
+                value={formData.countryCode}
+                onChange={handleChange}
+                options={countries.map((c) => ({ value: c.iso, label: `${c.iso} (${c.dial})` }))}
+                placeholder="Select your country code"
+                required
+                error={errors.countryCode}
+              />
+
               <Input
                 id="phone"
                 name="phone"
@@ -476,6 +408,7 @@ export default function SignupPage() {
                 placeholder="05XXXXXXXX"
                 required
                 error={errors.phone}
+                className="md:col-span-2"
               />
 
               <Select

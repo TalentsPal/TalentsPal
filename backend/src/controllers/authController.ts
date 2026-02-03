@@ -71,7 +71,7 @@ export const signup = asyncHandler(
 
     // Validate required fields
     if (!fullName || !email || !password || !confirmPassword || !countryCode || !phone || !city) {
-      throw new AppError('Please provide all required fields', 400);
+      throw new AppError('Please provide all required fields: fullName, email, password, confirmPassword, countryCode, phone, city', 400);
     }
 
     // Set default role if not provided

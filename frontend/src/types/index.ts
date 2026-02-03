@@ -41,6 +41,7 @@ export interface SignupFormData {
   password: string;
   confirmPassword: string;
   role: UserRole;
+  countryCode: string;
   phone: string;
   city: string;
   university?: string;
