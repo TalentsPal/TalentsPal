@@ -21,8 +21,8 @@ export default function AuthCallbackPage() {
       if (token && refreshToken) {
         // Store tokens with correct key names
         localStorage.setItem('accessToken', token);
-        localStorage.setItem('refreshToken', refreshToken);
-        
+        // localStorage.setItem('refreshToken', refreshToken);
+
         console.log('Tokens stored successfully');
 
         try {
@@ -41,11 +41,11 @@ export default function AuthCallbackPage() {
           if (response.ok) {
             const data = await response.json();
             console.log('User data received:', data);
-            
+
             // Store user data - handle nested user object
             const userData = data.data?.user || data.data;
             console.log('Extracted user data:', userData);
-            
+
             if (userData) {
               localStorage.setItem('user', JSON.stringify(userData));
               console.log('User data stored in localStorage:', JSON.stringify(userData, null, 2));

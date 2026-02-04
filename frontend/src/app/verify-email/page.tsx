@@ -38,7 +38,7 @@ export default function VerifyEmailPage() {
           // Store tokens if provided
           if (data.data?.accessToken) {
             localStorage.setItem('accessToken', data.data.accessToken);
-            localStorage.setItem('refreshToken', data.data.refreshToken);
+            //localStorage.setItem('refreshToken', data.data.refreshToken);
             localStorage.setItem('user', JSON.stringify(data.data.user));
           }
 

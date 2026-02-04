@@ -25,6 +25,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import { fetchUniversities, fetchMajors, fetchCities } from '@/services/metadataService';
+import { logoutUser, simpleLogout } from '@/services/authService';
 
 interface ProfileData {
   fullName: string;
@@ -46,12 +47,12 @@ export default function StudentProfilePage() {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [user, setUser] = useState<any>(null);
   const isInitialized = useRef(false);
-  
+
   // Dynamic data
   const [cities, setCities] = useState<string[]>([]);
   const [universities, setUniversities] = useState<{ value: string; label: string }[]>([]);
   const [majors, setMajors] = useState<{ value: string; label: string }[]>([]);
-  
+
   const [profileData, setProfileData] = useState<ProfileData>({
     fullName: '',
     email: '',
@@ -73,45 +74,27 @@ export default function StudentProfilePage() {
     // Fetch user data from backend API
     const fetchUserData = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
-        if (!token) {
-          router.push('/login');
-          return;
-        }
+        const { getCurrentUser } = await import('@/services/authService');
+        const data = await getCurrentUser();
+        const userData = data.data?.user || data.data; // Handle potential structure differences
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-        const response = await fetch(`${apiUrl}/auth/me`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
+        // Update state with fresh data from backend
+        setUser(userData);
+        setProfileData({
+          fullName: userData.fullName || '',
+          email: userData.email || '',
+          phone: userData.phone || '',
+          city: userData.city || '',
+          university: userData.university || '',
+          major: userData.major || '',
+          graduationYear: userData.graduationYear || '',
+          linkedInUrl: userData.linkedInUrl || '',
+          interests: userData.interests || [],
+          bio: userData.bio || '',
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          const userData = data.data?.user || data.data;
-          
-          // Update state with fresh data from backend
-          setUser(userData);
-          setProfileData({
-            fullName: userData.fullName || '',
-            email: userData.email || '',
-            phone: userData.phone || '',
-            city: userData.city || '',
-            university: userData.university || '',
-            major: userData.major || '',
-            graduationYear: userData.graduationYear || '',
-            linkedInUrl: userData.linkedInUrl || '',
-            interests: userData.interests || [],
-            bio: userData.bio || '',
-          });
-
-          // Update localStorage with fresh data
-          localStorage.setItem('user', JSON.stringify(userData));
-        } else {
-          router.push('/login');
-        }
+        // Update localStorage with fresh data
+        localStorage.setItem('user', JSON.stringify(userData));
       } catch (error) {
         console.error('Failed to fetch user data:', error);
         router.push('/login');
@@ -146,14 +129,14 @@ export default function StudentProfilePage() {
       // Import and call API
       const { updateProfile } = await import('@/services/authService');
       const response = await updateProfile(profileData);
-      
+
       // Update localStorage with new data
       const updatedUser = { ...user, ...profileData };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
-      
+
       setIsEditing(false);
-      
+
       // Show success message (optional)
       console.log('Profile updated successfully:', response);
     } catch (error: any) {
@@ -203,12 +186,12 @@ export default function StudentProfilePage() {
     try {
       const { uploadProfileImage } = await import('@/services/authService');
       const response = await uploadProfileImage(file);
-      
+
       // Update user data with new profile image
       const updatedUser = { ...user, profileImage: response.data.profileImage };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
-      
+
       console.log('Profile image uploaded successfully');
     } catch (error: any) {
       console.error('Error uploading image:', error);
@@ -218,14 +201,12 @@ export default function StudentProfilePage() {
     }
   };
 
-  const handleLogout = () => {
-    // Clear all user data
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    
-    // Redirect to login page
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch (error) {
+      simpleLogout();
+    }
   };
 
   const profileStats = [
@@ -342,9 +323,8 @@ export default function StudentProfilePage() {
                       />
                       <label
                         htmlFor="profileImageUpload"
-                        className={`absolute bottom-0 right-0 w-10 h-10 bg-white dark:bg-dark-700 rounded-full shadow-lg flex items-center justify-center text-purple-600 hover:bg-purple-50 transition-colors border-2 border-white dark:border-dark-800 cursor-pointer ${
-                          isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
+                        className={`absolute bottom-0 right-0 w-10 h-10 bg-white dark:bg-dark-700 rounded-full shadow-lg flex items-center justify-center text-purple-600 hover:bg-purple-50 transition-colors border-2 border-white dark:border-dark-800 cursor-pointer ${isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
                       >
                         {isUploadingImage ? (
                           <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
@@ -414,7 +394,7 @@ export default function StudentProfilePage() {
                     </span>
                   </button>
                 ))}
-                
+
                 {/* Logout Button */}
                 <button
                   onClick={handleLogout}

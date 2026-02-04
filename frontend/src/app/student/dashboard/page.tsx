@@ -18,6 +18,7 @@ import {
 } from 'react-icons/fi';
 import { getUserStats, getUserTestHistory } from '@/services/questionService';
 import DailyChallengeCard from '@/components/DailyChallengeCard';
+import { logoutUser, simpleLogout } from '@/services/authService';
 
 export default function StudentDashboard() {
   const router = useRouter();
@@ -46,21 +47,15 @@ export default function StudentDashboard() {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
         // Fetch user data
-        const userResponse = await fetch(`${apiUrl}/auth/me`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+        const { getCurrentUser } = await import('@/services/authService');
+        const userData = await getCurrentUser();
 
-        if (!userResponse.ok) {
-          router.push('/login');
-          return;
+        // Check structure
+        const user = userData.data?.user || userData.data;
+        if (!user) {
+          throw new Error('User data not found');
         }
 
-        const userData = await userResponse.json();
-        const user = userData.data?.user || userData.data;
         setUser(user);
         localStorage.setItem('user', JSON.stringify(user));
 
@@ -77,7 +72,7 @@ export default function StudentDashboard() {
 
         // Fetch user stats
         const userStats = await getUserStats();
-        
+
         // Fetch recent test history
         const history = await getUserTestHistory(undefined, 1, 5);
         setRecentAttempts(history.attempts || []);
@@ -97,15 +92,15 @@ export default function StudentDashboard() {
             totalQs += stat.totalQuestions || 0;
             totalCorrect += stat.totalCorrect || 0;
           });
-          
+
           if (totalAttempts > 0) {
             avgScore = Math.round(avgScore / totalAttempts);
           }
         }
 
         // Get last score from recent attempts
-        const lastScore = history.attempts && history.attempts.length > 0 
-          ? history.attempts[0].score 
+        const lastScore = history.attempts && history.attempts.length > 0
+          ? history.attempts[0].score
           : 0;
 
         setStats({
@@ -117,7 +112,7 @@ export default function StudentDashboard() {
           totalQuestions: totalQs,
           totalCorrect: totalCorrect,
         });
-        
+
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -128,10 +123,12 @@ export default function StudentDashboard() {
     fetchDashboardData();
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch (error) {
+      simpleLogout();
+    }
   };
 
   const quickActions = [
@@ -332,8 +329,8 @@ export default function StudentDashboard() {
               </Link>
             </div>
             <div className="mt-4 bg-white/20 rounded-full h-2 overflow-hidden">
-              <div 
-                className="bg-white h-full transition-all duration-500" 
+              <div
+                className="bg-white h-full transition-all duration-500"
                 style={{ width: `${stats.profileCompletion}%` }}
               />
             </div>
@@ -353,9 +350,8 @@ export default function StudentDashboard() {
                 recentAttempts.map((attempt, index) => (
                   <div key={attempt._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold ${
-                        attempt.score >= 70 ? 'bg-green-500' : attempt.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}>
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold ${attempt.score >= 70 ? 'bg-green-500' : attempt.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}>
                         {Math.round(attempt.score)}
                       </div>
                       <div>

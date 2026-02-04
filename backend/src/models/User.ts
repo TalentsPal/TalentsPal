@@ -6,9 +6,9 @@ export const STUDENT_ROLE = 0;
 export const COMPANY_ROLE = 1;
 export const ADMIN_ROLE = 2;
 export const VALID_ROLES = [
-	'student',
-	'company',
-	'admin',
+  'student',
+  'company',
+  'admin',
 ];
 
 /**
@@ -33,6 +33,10 @@ export interface IUser extends Document {
   // Email verification fields
   emailVerificationToken?: string;
   emailVerificationExpires?: Date;
+
+  // Password Reset
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
 
   // OAuth fields
   googleId?: string;
@@ -214,6 +218,16 @@ const UserSchema = new Schema<IUser>(
       type: Date,
       select: false,
     },
+
+    // Password Reset
+    passwordResetToken: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
+    },
   },
   {
     timestamps: true, // Automatically adds createdAt and updatedAt
@@ -298,11 +312,12 @@ UserSchema.methods.getPublicProfile = function (): Partial<IUser> {
 UserSchema.index({ role: 1 }); // Filter by role
 UserSchema.index({ createdAt: -1 }); // Sort by creation date
 UserSchema.index({ isEmailVerified: 1, role: 1 }); // Filter verified users by role
-UserSchema.index({ email:1, isEmailVerified: 1 }); // Filter verified users by email and isEmailVerified
+UserSchema.index({ email: 1, isEmailVerified: 1 }); // Filter verified users by email and isEmailVerified
 UserSchema.index({ university: 1, major: 1 }); // Student search by university/major
 UserSchema.index({ industry: 1 }); // Company search by industry
 UserSchema.index({ refreshToken: 1 }); // User search by refreshToken
 UserSchema.index({ emailVerificationToken: 1 }, { sparse: true }); // Email verification lookup
+UserSchema.index({ passwordResetToken: 1, passwordResetExpires: 1 });
 
 /**
  * Export User Model

@@ -11,6 +11,8 @@ import {
   resendVerification,
   refreshAccessToken,
   logout,
+  forgotPassword,
+  resetPassword,
 } from '../controllers/authController';
 import { uploadProfileImage, deleteProfileImage } from '../controllers/uploadController';
 import { authenticate } from '../middleware/auth';
@@ -40,6 +42,8 @@ router.post('/logout', authenticate, logout);
 // Email verification routes
 router.get('/verify-email/:token', generalLimiter, verifyEmail);
 router.post('/resend-verification', verificationEmailLimiter, resendVerification);
+router.post('/forgot-password', authLimiter, forgotPassword);
+router.post('/reset-password/:token', authLimiter, resetPassword);
 
 // Test route
 router.get('/test', (req, res) => {

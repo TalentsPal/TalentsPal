@@ -4,7 +4,7 @@
  */
 
 // Base API URL - Update this based on your environment
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 // API Endpoints
 export const API_ENDPOINTS = {
@@ -18,6 +18,9 @@ export const API_ENDPOINTS = {
     CHANGE_PASSWORD: `${API_BASE_URL}/auth/change-password`,
     UPLOAD_PROFILE_IMAGE: `${API_BASE_URL}/auth/upload-profile-image`,
     DELETE_PROFILE_IMAGE: `${API_BASE_URL}/auth/delete-profile-image`,
+    FORGOT_PASSWORD: `${API_BASE_URL}/auth/forgot-password`,
+    RESET_PASSWORD: `${API_BASE_URL}/auth/reset-password`,
+    REFRESH: `${API_BASE_URL}/auth/refresh`,
   },
   // Company endpoints
   COMPANIES: {

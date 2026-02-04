@@ -22,6 +22,7 @@ import {
 import {
   generateVerificationToken,
   sendVerificationEmail,
+  sendPasswordResetEmail,
 } from '../utils/email';
 import bcrypt from 'bcrypt';
 import crypto from "crypto";
@@ -87,7 +88,7 @@ export const signup = asyncHandler(
       userRole === VALID_ROLES[STUDENT_ROLE] && university ? isValidUniversity(university) : Promise.resolve({ valid: true, message: "" }),
       userRole === VALID_ROLES[STUDENT_ROLE] && major ? isValidMajor(major) : Promise.resolve({ valid: true, message: "" }),
     ]);
-    
+
     const [cityValidation, universityValidation, majorValidation] = checks;
 
     // Validate password strength
@@ -115,9 +116,9 @@ export const signup = asyncHandler(
     // Validate city
     if (!cityValidation.valid) {
       throw new AppError(cityValidation.message || 'This city is not supported yet', 404);
-    }   
+    }
 
-    if (userRole == VALID_ROLES[STUDENT_ROLE]){
+    if (userRole == VALID_ROLES[STUDENT_ROLE]) {
       // Validate university
       if (university) {
         // const universityValidation = await isValidUniversity(university);
@@ -138,7 +139,7 @@ export const signup = asyncHandler(
         const graduationYearValidation = isValidYear(graduationYear);
         if (!graduationYearValidation.valid) {
           throw new AppError(graduationYearValidation.message || 'Invalid graduation year', 400);
-        } 
+        }
       }
 
       // Validate interests
@@ -298,7 +299,7 @@ export const login = asyncHandler(
     res.cookie("refreshToken", tokensGenerator.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production"? "none" : "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/api/auth/refresh",
       maxAge: ms,
     });
@@ -400,7 +401,7 @@ export const updateProfile = asyncHandler(
     const blockedFields = ['email', 'companyEmail', 'role', 'isEmailVerified', 'isProfileComplete', 'isActive', 'password', 'profileImage', 'emailVerificationToken', 'emailVerificationExpires', 'googleId', 'linkedinId', '_id', 'refreshToken', 'refreshTokenExp', 'createdAt', 'updatedAt'];
     const attemptedFields = Object.keys(req.body);
     const forbidden = attemptedFields.filter(field => blockedFields.includes(field));
-    
+
     if (forbidden.length > 0) {
       throw new AppError(`Cannot modify protected fields: ${forbidden.join(', ')}`, 403);
     }
@@ -433,17 +434,17 @@ export const updateProfile = asyncHandler(
     }
 
     const checks = await Promise.all([
-      city ? isValidCity(city): Promise.resolve({ valid: true, message: "" }),
+      city ? isValidCity(city) : Promise.resolve({ valid: true, message: "" }),
       user.role === VALID_ROLES[STUDENT_ROLE] && university ? isValidUniversity(university) : Promise.resolve({ valid: true, message: "" }),
       user.role === VALID_ROLES[STUDENT_ROLE] && major ? isValidMajor(major) : Promise.resolve({ valid: true, message: "" }),
     ]);
-    
+
     const [cityValidation, universityValidation, majorValidation] = checks;
-    
+
     if (city !== undefined) {
       if (!cityValidation.valid) {
         throw new AppError(cityValidation.message || 'This city is not supported yet', 404);
-      }  
+      }
       user.city = city;
     }
 
@@ -470,7 +471,7 @@ export const updateProfile = asyncHandler(
         }
         user.graduationYear = graduationYear;
       }
-      
+
       if (interests !== undefined && Array.isArray(interests) && interests.length !== 0) {
         const interestsValidation = validateInterests(interests);
         if (!interestsValidation.valid) {
@@ -689,7 +690,7 @@ export const verifyEmail = asyncHandler(
     res.cookie("refreshToken", tokensGenerator.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production"? "none" : "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/api/auth/refresh",
       maxAge: ms,
     });
@@ -739,26 +740,31 @@ export const resendVerification = asyncHandler(
     const user = await User.findOneAndUpdate(
       { email: sanitizedEmail, isEmailVerified: false },
       { $set: { emailVerificationToken: verificationToken, emailVerificationExpires: verificationExpires } },
-      { new: true, projection: { fullName: 1} }
+      { new: true, projection: { fullName: 1 } }
     ).lean();
 
-    if (!user) {
-      throw new AppError('No account found with this email or it is already verified', 400);
-    }
-
-    // Send verification email
-    try {
-      await sendVerificationEmail(sanitizedEmail, user.fullName, verificationToken);
-    } catch (error) {
-      console.error('Failed to send verification email:', error);
-      throw new AppError('Failed to send verification email. Please try again later.', 500);
-    }
-
-    // Send response
     res.status(200).json({
       success: true,
-      message: 'Verification email sent successfully. Please check your inbox.',
+      message: 'If an account with that email exists, a verification email has been sent.',
     });
+
+    if (!user) {
+      return;
+    }
+
+    // Send verification email - fire-and-forget
+    sendVerificationEmail(sanitizedEmail, user.fullName, verificationToken)
+      .catch(async () => {
+        await User.updateOne(
+          { email: sanitizedEmail },
+          {
+            $unset: {
+              emailVerificationToken: 1,
+              emailVerificationExpires: 1,
+            },
+          }
+        );
+      });
   }
 );
 
@@ -805,7 +811,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
   res.cookie("refreshToken", tokensGenerator.refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production"? "none" : "lax",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     path: "/api/auth/refresh",
     maxAge: ms,
   });
@@ -841,4 +847,138 @@ export const logout = asyncHandler(async (req, res) => {
 
   res.status(200).json({ success: true, message: "Logged out" });
 });
+
+/**
+ * @route   POST /api/auth/forgot-password
+ * @desc    Send password reset email
+ * @access  Public
+ */
+export const forgotPassword = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    const { email } = req.body;
+
+    if (!email) {
+      throw new AppError('Please provide your email address', 400);
+    }
+
+    // Sanitize email
+    const sanitizedEmail = sanitizeInput(email.toLowerCase());
+
+    // Validate email format
+    if (!isValidEmail(sanitizedEmail)) {
+      throw new AppError('Please provide a valid email address', 400);
+    }
+
+    const user = await User.findOne({ email: sanitizedEmail });
+
+    if (!user) {
+      res.status(200).json({
+        success: true,
+        message: 'If an account with that email exists, a reset link has been sent.',
+      });
+      return;
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+
+    // We'll manualy handle it here since we didn't add the method to the model yet or we can just do it here
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
+    user.passwordResetToken = hashedToken;
+    user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await user.save({ validateBeforeSave: false });
+
+
+    res.status(200).json({
+      success: true,
+      message: 'If an account with that email exists, a reset link has been sent.',
+    });
+
+    // Send password reset email - fire-and-forget
+    sendPasswordResetEmail(user.email, user.fullName, resetToken)
+      .catch(async () => {
+        user.passwordResetToken = undefined;
+        user.passwordResetExpires = undefined;
+        await user.save({ validateBeforeSave: false });
+      });
+  }
+);
+
+/**
+ * @route   POST /api/auth/reset-password/:token
+ * @desc    Reset password
+ * @access  Public
+ */
+export const resetPassword = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
+    // 1) Get user based on the token
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(req.params.token)
+      .digest('hex');
+
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() },
+    });
+
+    // 2) If token has not expired, and there is user, set the new password
+    if (!user) {
+      throw new AppError('Token is invalid or has expired', 400);
+    }
+
+    const { password, confirmPassword } = req.body;
+
+    if (!password || !confirmPassword) {
+      throw new AppError('Please provide password and confirmPassword', 400);
+    }
+
+    if (password !== confirmPassword) {
+      throw new AppError('Passwords do not match', 400);
+    }
+
+    // Validate password strength
+    const passwordValidation = isValidPassword(password);
+    if (!passwordValidation.valid) {
+      throw new AppError(passwordValidation.message || 'Invalid password', 400);
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+    user.password = hashedPassword;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+
+    // Clear refresh token to force re-login on all devices
+    user.refreshToken = undefined;
+    user.refreshTokenExp = undefined;
+
+    await user.save();
+
+    // 3) Log the user in, send JWT
+    // Actually, usually we just send success and make them login
+    // But we can also log them in directly. Let's just send success 
+    // as per typical security practices to verify they know the new password.
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successful! Please log in with your new password.',
+    });
+
+    // invalidate user's profile in cache
+    const userId = user._id.toString();
+
+    Promise.all([
+      cacheDel(meKey(userId)),
+      cacheDel(authKey(userId)),
+    ]);
+  }
+);
+
 

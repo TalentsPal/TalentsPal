@@ -4,6 +4,7 @@
  */
 
 import { API_ENDPOINTS, getHeaders } from '@/config/api';
+import { apiFetch } from '@/lib/apiClient';
 import { SignupFormData, LoginFormData } from '@/types';
 
 /**
@@ -27,9 +28,9 @@ export const signupUser = async (formData: SignupFormData) => {
     if (data.data.accessToken) {
       localStorage.setItem('accessToken', data.data.accessToken);
     }
-    if (data.data.refreshToken) {
-      localStorage.setItem('refreshToken', data.data.refreshToken);
-    }
+    // if (data.data.refreshToken) {
+    //   localStorage.setItem('refreshToken', data.data.refreshToken);
+    // }
     // Store user data
     if (data.data.user) {
       localStorage.setItem('user', JSON.stringify(data.data.user));
@@ -63,9 +64,9 @@ export const loginUser = async (formData: LoginFormData) => {
     if (data.data.accessToken) {
       localStorage.setItem('accessToken', data.data.accessToken);
     }
-    if (data.data.refreshToken) {
-      localStorage.setItem('refreshToken', data.data.refreshToken);
-    }
+    // if (data.data.refreshToken) {
+    //   localStorage.setItem('refreshToken', data.data.refreshToken);
+    // }
     // Store user data
     if (data.data.user) {
       localStorage.setItem('user', JSON.stringify(data.data.user));
@@ -83,15 +84,8 @@ export const loginUser = async (formData: LoginFormData) => {
  */
 export const getCurrentUser = async () => {
   try {
-    const token = localStorage.getItem('accessToken');
-
-    if (!token) {
-      throw new Error('No access token found');
-    }
-
-    const response = await fetch(API_ENDPOINTS.AUTH.ME, {
+    const response = await apiFetch(API_ENDPOINTS.AUTH.ME, {
       method: 'GET',
-      headers: getHeaders(token),
     });
 
     const data = await response.json();
@@ -110,10 +104,33 @@ export const getCurrentUser = async () => {
 /**
  * Logout user
  */
-export const logoutUser = () => {
+export const simpleLogout = () => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
+  window.location.href = '/login';
+};
+
+export const logoutUser = async () => {
+  try {
+    const response = await apiFetch(API_ENDPOINTS.AUTH.LOGOUT, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Logout failed');
+    }
+
+    simpleLogout();
+
+    return data;
+  } catch (error) {
+    console.error('Logout error:', error);
+    throw error;
+  }
 };
 
 /**
@@ -135,15 +152,8 @@ export const getAccessToken = (): string | null => {
  */
 export const updateProfile = async (profileData: any) => {
   try {
-    const token = localStorage.getItem('accessToken');
-
-    if (!token) {
-      throw new Error('No access token found');
-    }
-
-    const response = await fetch(API_ENDPOINTS.AUTH.UPDATE_PROFILE, {
+    const response = await apiFetch(API_ENDPOINTS.AUTH.UPDATE_PROFILE, {
       method: 'PUT',
-      headers: getHeaders(token),
       body: JSON.stringify(profileData),
     });
 
@@ -165,20 +175,11 @@ export const updateProfile = async (profileData: any) => {
  */
 export const uploadProfileImage = async (file: File) => {
   try {
-    const token = localStorage.getItem('accessToken');
-
-    if (!token) {
-      throw new Error('No access token found');
-    }
-
     const formData = new FormData();
     formData.append('profileImage', file);
 
-    const response = await fetch(API_ENDPOINTS.AUTH.UPLOAD_PROFILE_IMAGE, {
+    const response = await apiFetch(API_ENDPOINTS.AUTH.UPLOAD_PROFILE_IMAGE, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
       body: formData,
     });
 
@@ -200,15 +201,8 @@ export const uploadProfileImage = async (file: File) => {
  */
 export const deleteProfileImage = async () => {
   try {
-    const token = localStorage.getItem('accessToken');
-
-    if (!token) {
-      throw new Error('No access token found');
-    }
-
-    const response = await fetch(API_ENDPOINTS.AUTH.DELETE_PROFILE_IMAGE, {
+    const response = await apiFetch(API_ENDPOINTS.AUTH.DELETE_PROFILE_IMAGE, {
       method: 'DELETE',
-      headers: getHeaders(token),
     });
 
     const data = await response.json();
@@ -220,6 +214,55 @@ export const deleteProfileImage = async () => {
     return data;
   } catch (error) {
     console.error('Delete image error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Forgot password
+ */
+export const forgotPassword = async (email: string) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to send reset email');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Reset password
+ */
+export const resetPassword = async (token: string, password: string, confirmPassword: string) => {
+  try {
+    const url = `${API_ENDPOINTS.AUTH.RESET_PASSWORD}/${token}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ password, confirmPassword }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to reset password');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Reset password error:', error);
     throw error;
   }
 };

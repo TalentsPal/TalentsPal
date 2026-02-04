@@ -47,10 +47,10 @@ export const authenticate = async (
     console.log("user's authentication check not found in cache ❌");
     console.log("getting authentication check from DB...");
     const user = await User.findOne(
-      {_id: decoded.userId},
-      {_id: 1, isActive: 1}
+      { _id: decoded.userId },
+      { _id: 1, isActive: 1 }
     ).lean();
-    
+
     if (!user) throw new AppError("User no longer exists", 401);
     if (!user.isActive) throw new AppError("User account is deactivated", 401);
 
