@@ -35,17 +35,13 @@ export interface TestHistory {
  */
 export const getUserStats = async (category?: string): Promise<UserStats[]> => {
   try {
-    const token = localStorage.getItem('accessToken');
-    const url = category 
+    const url = category
       ? `${API_URL}/questions/stats/user?category=${category}`
       : `${API_URL}/questions/stats/user`;
 
-    const response = await fetch(url, {
+    const { apiFetch } = await import('@/lib/apiClient');
+    const response = await apiFetch(url, {
       method: 'GET',
-      headers: {
-        ...getHeaders(),
-        'Authorization': `Bearer ${token}`,
-      },
     });
 
     const data = await response.json();
@@ -70,19 +66,15 @@ export const getUserTestHistory = async (
   limit: number = 10
 ): Promise<{ attempts: TestHistory[]; total: number; page: number; pages: number }> => {
   try {
-    const token = localStorage.getItem('accessToken');
     let url = `${API_URL}/questions/history?page=${page}&limit=${limit}`;
-    
+
     if (category) {
       url += `&category=${category}`;
     }
 
-    const response = await fetch(url, {
+    const { apiFetch } = await import('@/lib/apiClient');
+    const response = await apiFetch(url, {
       method: 'GET',
-      headers: {
-        ...getHeaders(),
-        'Authorization': `Bearer ${token}`,
-      },
     });
 
     const data = await response.json();
@@ -106,15 +98,11 @@ export const getLeaderboard = async (
   limit: number = 10
 ): Promise<any[]> => {
   try {
-    const token = localStorage.getItem('accessToken');
     const url = `${API_URL}/questions/leaderboard?category=${category}&limit=${limit}`;
 
-    const response = await fetch(url, {
+    const { apiFetch } = await import('@/lib/apiClient');
+    const response = await apiFetch(url, {
       method: 'GET',
-      headers: {
-        ...getHeaders(),
-        'Authorization': `Bearer ${token}`,
-      },
     });
 
     const data = await response.json();

@@ -1,4 +1,4 @@
-import { API_BASE_URL, getHeaders } from '@/config/api';
+import { API_BASE_URL } from '@/config/api';
 
 export interface DailyChallenge {
   _id: string;
@@ -50,9 +50,9 @@ export interface UserAchievements {
  * Get today's daily challenge
  */
 export const getTodayChallenge = async (): Promise<TodayChallengeResponse> => {
-  const token = localStorage.getItem('accessToken');
-  const response = await fetch(`${API_BASE_URL}/challenges/today`, {
-    headers: getHeaders(token || ''),
+  const { apiFetch } = await import('@/lib/apiClient');
+  const response = await apiFetch(`${API_BASE_URL}/challenges/today`, {
+    method: 'GET',
   });
   const data = await response.json();
   return data.data;
@@ -62,10 +62,9 @@ export const getTodayChallenge = async (): Promise<TodayChallengeResponse> => {
  * Submit answer for daily challenge
  */
 export const submitChallengeAnswer = async (userAnswer: string) => {
-  const token = localStorage.getItem('accessToken');
-  const response = await fetch(`${API_BASE_URL}/challenges/submit`, {
+  const { apiFetch } = await import('@/lib/apiClient');
+  const response = await apiFetch(`${API_BASE_URL}/challenges/submit`, {
     method: 'POST',
-    headers: getHeaders(token || ''),
     body: JSON.stringify({ userAnswer }),
   });
   return await response.json();
@@ -75,9 +74,9 @@ export const submitChallengeAnswer = async (userAnswer: string) => {
  * Get user streak information
  */
 export const getUserStreak = async (): Promise<UserStreak> => {
-  const token = localStorage.getItem('accessToken');
-  const response = await fetch(`${API_BASE_URL}/challenges/streak`, {
-    headers: getHeaders(token || ''),
+  const { apiFetch } = await import('@/lib/apiClient');
+  const response = await apiFetch(`${API_BASE_URL}/challenges/streak`, {
+    method: 'GET',
   });
   const data = await response.json();
   return data.data;
@@ -87,9 +86,9 @@ export const getUserStreak = async (): Promise<UserStreak> => {
  * Get challenge history
  */
 export const getChallengeHistory = async (page = 1, limit = 10) => {
-  const token = localStorage.getItem('accessToken');
-  const response = await fetch(`${API_BASE_URL}/challenges/history?page=${page}&limit=${limit}`, {
-    headers: getHeaders(token || ''),
+  const { apiFetch } = await import('@/lib/apiClient');
+  const response = await apiFetch(`${API_BASE_URL}/challenges/history?page=${page}&limit=${limit}`, {
+    method: 'GET',
   });
   const data = await response.json();
   return data.data;
@@ -99,9 +98,9 @@ export const getChallengeHistory = async (page = 1, limit = 10) => {
  * Get all user achievements
  */
 export const getUserAchievements = async (): Promise<UserAchievements> => {
-  const token = localStorage.getItem('accessToken');
-  const response = await fetch(`${API_BASE_URL}/achievements`, {
-    headers: getHeaders(token || ''),
+  const { apiFetch } = await import('@/lib/apiClient');
+  const response = await apiFetch(`${API_BASE_URL}/achievements`, {
+    method: 'GET',
   });
   const data = await response.json();
   return data.data;
@@ -111,9 +110,9 @@ export const getUserAchievements = async (): Promise<UserAchievements> => {
  * Get achievement progress
  */
 export const getAchievementProgress = async () => {
-  const token = localStorage.getItem('accessToken');
-  const response = await fetch(`${API_BASE_URL}/achievements/progress`, {
-    headers: getHeaders(token || ''),
+  const { apiFetch } = await import('@/lib/apiClient');
+  const response = await apiFetch(`${API_BASE_URL}/achievements/progress`, {
+    method: 'GET',
   });
   const data = await response.json();
   return data.data;

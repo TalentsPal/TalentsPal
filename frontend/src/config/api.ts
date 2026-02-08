@@ -4,7 +4,7 @@
  */
 
 // Base API URL - Update this based on your environment
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 // API Endpoints
 export const API_ENDPOINTS = {
