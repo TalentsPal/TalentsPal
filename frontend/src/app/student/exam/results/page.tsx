@@ -32,27 +32,27 @@ function ResultsContent() {
   // Format code blocks in text
   const formatTextWithCode = (text: string) => {
     if (!text) return null;
-    
+
     const backtickRegex = /`([^`]+)`/g;
-    
+
     if (!backtickRegex.test(text)) {
       return <span className="whitespace-pre-wrap">{text}</span>;
     }
-    
+
     const parts: JSX.Element[] = [];
     let lastIndex = 0;
     let match;
     let key = 0;
-    
+
     backtickRegex.lastIndex = 0;
-    
+
     while ((match = backtickRegex.exec(text)) !== null) {
       if (match.index > lastIndex) {
         parts.push(
           <span key={`text-${key++}`} className="whitespace-pre-wrap">{text.substring(lastIndex, match.index)}</span>
         );
       }
-      
+
       parts.push(
         <code
           key={`code-${key++}`}
@@ -62,16 +62,16 @@ function ResultsContent() {
           {match[1]}
         </code>
       );
-      
+
       lastIndex = match.index + match[0].length;
     }
-    
+
     if (lastIndex < text.length) {
       parts.push(
         <span key={`text-${key++}`} className="whitespace-pre-wrap">{text.substring(lastIndex)}</span>
       );
     }
-    
+
     return <div className="leading-relaxed">{parts.length > 0 ? parts : <span className="whitespace-pre-wrap">{text}</span>}</div>;
   };
 
@@ -89,7 +89,7 @@ function ResultsContent() {
 
       try {
         const token = localStorage.getItem('accessToken');
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
         const response = await fetch(
           `${apiUrl}/questions/attempt/${attemptId}`,
           {
@@ -271,16 +271,14 @@ function ResultsContent() {
               {result.questions?.map((item: any, index: number) => (
                 <div
                   key={index}
-                  className={`rounded-xl p-6 border-2 ${
-                    item.isCorrect
+                  className={`rounded-xl p-6 border-2 ${item.isCorrect
                       ? 'bg-green-50 border-green-200'
                       : 'bg-red-50 border-red-200'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start gap-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      item.isCorrect ? 'bg-green-500' : 'bg-red-500'
-                    }`}>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${item.isCorrect ? 'bg-green-500' : 'bg-red-500'
+                      }`}>
                       <span className="text-2xl text-white">
                         {item.isCorrect ? '✓' : '✗'}
                       </span>
@@ -288,18 +286,16 @@ function ResultsContent() {
 
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-3">
-                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                          item.isCorrect
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${item.isCorrect
                             ? 'bg-green-500 text-white'
                             : 'bg-red-500 text-white'
-                        }`}>
+                          }`}>
                           Question {index + 1}
                         </span>
-                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                          item.isCorrect
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${item.isCorrect
                             ? 'bg-green-100 text-green-700 border border-green-300'
                             : 'bg-red-100 text-red-700 border border-red-300'
-                        }`}>
+                          }`}>
                           {item.isCorrect ? 'Correct' : 'Wrong'}
                         </span>
                       </div>
@@ -320,11 +316,10 @@ function ResultsContent() {
                           </div>
                         )}
 
-                        <div className={`rounded-lg p-3 border ${
-                          item.isCorrect
+                        <div className={`rounded-lg p-3 border ${item.isCorrect
                             ? 'bg-green-100 border-green-200'
                             : 'bg-green-50 border-green-200'
-                        }`}>
+                          }`}>
                           <div className="text-sm text-green-600 font-semibold mb-1">
                             Correct Answer:
                           </div>

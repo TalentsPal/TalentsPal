@@ -44,7 +44,7 @@ export default function StudentDashboard() {
           return;
         }
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
         // Fetch user data
         const { getCurrentUser } = await import('@/services/authService');

@@ -413,8 +413,6 @@ export const updateProfile = asyncHandler(
       throw new AppError('User not found', 404);
     }
 
-    console.log(req.body);
-
     // Update fields if provided
     if (fullName !== undefined && fullName !== '' && fullName !== null) {
       const validateName = isValidName(fullName);
@@ -781,7 +779,6 @@ const sha256hex = (raw: string) =>
  */
 export const refreshAccessToken = asyncHandler(async (req, res) => {
   const refreshToken = req.cookies?.refreshToken;
-  console.log(refreshToken);
 
   if (!refreshToken || typeof refreshToken !== "string") {
     throw new AppError("Refresh token is required", 401);

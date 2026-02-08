@@ -257,7 +257,7 @@ function ExamContent() {
         }
 
         // Fetch questions with primary difficulty
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
         const response = await fetch(
           `${apiUrl}/questions/random?category=${category}&count=${count}&difficulty=${difficulty}`,
           {
@@ -393,7 +393,7 @@ function ExamContent() {
 
     try {
       const token = localStorage.getItem('accessToken');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       const response = await fetch(`${apiUrl}/questions/submit`, {
         method: 'POST',
         headers: {

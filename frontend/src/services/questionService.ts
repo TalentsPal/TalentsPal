@@ -5,7 +5,7 @@
 
 import { getHeaders } from '@/config/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export interface UserStats {
   _id: string;
