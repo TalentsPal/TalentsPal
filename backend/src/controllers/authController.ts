@@ -413,8 +413,10 @@ export const updateProfile = asyncHandler(
       throw new AppError('User not found', 404);
     }
 
+    console.log(req.body);
+
     // Update fields if provided
-    if (fullName !== undefined) {
+    if (fullName !== undefined && fullName !== '' && fullName !== null) {
       const validateName = isValidName(fullName);
       if (!validateName.valid) {
         throw new AppError(validateName.message, 400);
@@ -423,7 +425,7 @@ export const updateProfile = asyncHandler(
     }
 
     // Validate phone number with country code if provided
-    if (phone !== undefined && countryCode !== undefined) {
+    if ((phone !== undefined && phone !== '' && phone !== null) && (countryCode !== undefined && countryCode !== '' && countryCode !== null)) {
       if (phone && countryCode) {
         const phoneNumberValidation = isValidPhoneNumber(phone, countryCode);
         if (!phoneNumberValidation.valid) {
@@ -434,14 +436,14 @@ export const updateProfile = asyncHandler(
     }
 
     const checks = await Promise.all([
-      city ? isValidCity(city) : Promise.resolve({ valid: true, message: "" }),
-      user.role === VALID_ROLES[STUDENT_ROLE] && university ? isValidUniversity(university) : Promise.resolve({ valid: true, message: "" }),
-      user.role === VALID_ROLES[STUDENT_ROLE] && major ? isValidMajor(major) : Promise.resolve({ valid: true, message: "" }),
+      (city !== undefined && city !== '' && city !== null) ? isValidCity(city) : Promise.resolve({ valid: true, message: "" }),
+      user.role === VALID_ROLES[STUDENT_ROLE] && (university !== undefined && university !== '' && university !== null) ? isValidUniversity(university) : Promise.resolve({ valid: true, message: "" }),
+      user.role === VALID_ROLES[STUDENT_ROLE] && (major !== undefined && major !== '' && major !== null) ? isValidMajor(major) : Promise.resolve({ valid: true, message: "" }),
     ]);
 
     const [cityValidation, universityValidation, majorValidation] = checks;
 
-    if (city !== undefined) {
+    if (city !== undefined && city !== '' && city !== null) {
       if (!cityValidation.valid) {
         throw new AppError(cityValidation.message || 'This city is not supported yet', 404);
       }
@@ -450,21 +452,21 @@ export const updateProfile = asyncHandler(
 
     // Student fields (only for student role)
     if (user.role === VALID_ROLES[STUDENT_ROLE]) {
-      if (university !== undefined) {
+      if (university !== undefined && university !== '' && university !== null) {
         if (!universityValidation.valid) {
           throw new AppError(universityValidation.message || 'This university is not supported yet', 404);
         }
         user.university = university;
       }
 
-      if (major !== undefined) {
+      if (major !== undefined && major !== '' && major !== null) {
         if (!majorValidation.valid) {
           throw new AppError(majorValidation.message || 'This major is not supported yet', 404);
         }
         user.major = major;
       }
 
-      if (graduationYear !== undefined) {
+      if (graduationYear !== undefined && graduationYear !== '' && graduationYear !== null) {
         const graduationYearValidation = isValidYear(graduationYear);
         if (!graduationYearValidation.valid) {
           throw new AppError(graduationYearValidation.message || 'Invalid graduation year', 400);
@@ -472,7 +474,7 @@ export const updateProfile = asyncHandler(
         user.graduationYear = graduationYear;
       }
 
-      if (interests !== undefined && Array.isArray(interests) && interests.length !== 0) {
+      if ((interests !== undefined && interests !== null) && Array.isArray(interests) && interests.length !== 0) {
         const interestsValidation = validateInterests(interests);
         if (!interestsValidation.valid) {
           throw new AppError(interestsValidation.message || 'Invalid interests', 400);
@@ -481,7 +483,7 @@ export const updateProfile = asyncHandler(
         user.interests = interestsValidation.uniqueInterests;
       }
 
-      if (bio !== undefined) {
+      if (bio !== undefined && bio !== '' && bio !== null) {
         if (bio.length > MAX_BIO_LENGTH) {
           throw new AppError(
             `Bio cannot exceed ${MAX_BIO_LENGTH} characters`,
@@ -491,7 +493,7 @@ export const updateProfile = asyncHandler(
         user.bio = bio;
       }
 
-      if (linkedInUrl !== undefined) {
+      if (linkedInUrl !== undefined && linkedInUrl !== '' && linkedInUrl !== null) {
         user.linkedInUrl = linkedInUrl;
       }
     } else if (user.role === VALID_ROLES[COMPANY_ROLE]) {

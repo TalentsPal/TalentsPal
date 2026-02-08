@@ -26,10 +26,33 @@ import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import { fetchUniversities, fetchMajors, fetchCities } from '@/services/metadataService';
 import { logoutUser, simpleLogout } from '@/services/authService';
+import { getCountries, getCountryCallingCode } from 'libphonenumber-js';
 
-interface ProfileData {
+const countries = getCountries().map((iso) => ({
+  iso,
+  dial: `+${getCountryCallingCode(iso)}`,
+}));
+
+interface FetchedProfileData {
   fullName: string;
   email: string;
+  role: string;
+  phone: string;
+  city: string;
+  university: string;
+  major: string;
+  graduationYear: string;
+  linkedInUrl: string;
+  interests: string[];
+  bio: string;
+  isEmailVerified: boolean;
+  isProfileCompleted: boolean;
+  profileImage: string;
+}
+
+interface ProfileDataToSave {
+  fullName: string;
+  countryCode: string;
   phone: string;
   city: string;
   university: string;
@@ -53,9 +76,26 @@ export default function StudentProfilePage() {
   const [universities, setUniversities] = useState<{ value: string; label: string }[]>([]);
   const [majors, setMajors] = useState<{ value: string; label: string }[]>([]);
 
-  const [profileData, setProfileData] = useState<ProfileData>({
+  const [fetchedProfileData, setFetchedProfileData] = useState<FetchedProfileData>({
     fullName: '',
     email: '',
+    role: '',
+    phone: '',
+    city: '',
+    university: '',
+    major: '',
+    graduationYear: '',
+    linkedInUrl: '',
+    interests: [],
+    bio: '',
+    isEmailVerified: false,
+    isProfileCompleted: false,
+    profileImage: '',
+  });
+
+  const [profileDataToSave, setProfileDataToSave] = useState<ProfileDataToSave>({
+    fullName: '',
+    countryCode: '',
     phone: '',
     city: '',
     university: '',
@@ -80,9 +120,10 @@ export default function StudentProfilePage() {
 
         // Update state with fresh data from backend
         setUser(userData);
-        setProfileData({
+        setFetchedProfileData({
           fullName: userData.fullName || '',
           email: userData.email || '',
+          role: userData.role || '',
           phone: userData.phone || '',
           city: userData.city || '',
           university: userData.university || '',
@@ -91,6 +132,9 @@ export default function StudentProfilePage() {
           linkedInUrl: userData.linkedInUrl || '',
           interests: userData.interests || [],
           bio: userData.bio || '',
+          isEmailVerified: userData.isEmailVerified || false,
+          isProfileCompleted: userData.isProfileCompleted || false,
+          profileImage: userData.profileImage || '',
         });
 
         // Update localStorage with fresh data
@@ -101,26 +145,36 @@ export default function StudentProfilePage() {
       }
     };
 
-    // Load metadata and user data in parallel
-    const loadData = async () => {
-      const [citiesData, universitiesData, majorsData] = await Promise.all([
-        fetchCities(),
-        fetchUniversities(),
-        fetchMajors(),
-        fetchUserData(),
-      ]);
-
-      setCities(citiesData);
-      setUniversities(universitiesData.map(u => ({ value: u.name, label: u.name })));
-      setMajors(majorsData.map(m => ({ value: m.name, label: m.name })));
-    };
-
-    loadData();
+    fetchUserData();
   }, [router]);
+
+  // Fetch metadata when entering edit mode
+  useEffect(() => {
+    if (isEditing && cities.length === 0) {
+      const loadMetadata = async () => {
+        try {
+          const [citiesData, universitiesData, majorsData] = await Promise.all([
+            fetchCities(),
+            fetchUniversities(),
+            fetchMajors(),
+          ]);
+
+          setCities(citiesData);
+          setUniversities(universitiesData.map(u => ({ value: u.name, label: u.name })));
+          setMajors(majorsData.map(m => ({ value: m.name, label: m.name })));
+        } catch (error) {
+          console.error('Failed to load form metadata:', error);
+        }
+      };
+
+      loadMetadata();
+    }
+  }, [isEditing, cities.length]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setProfileData((prev) => ({ ...prev, [name]: value }));
+    setProfileDataToSave((prev) => ({ ...prev, [name]: value }));
+    setFetchedProfileData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async () => {
@@ -128,10 +182,10 @@ export default function StudentProfilePage() {
     try {
       // Import and call API
       const { updateProfile } = await import('@/services/authService');
-      const response = await updateProfile(profileData);
+      const response = await updateProfile(profileDataToSave);
 
       // Update localStorage with new data
-      const updatedUser = { ...user, ...profileData };
+      const updatedUser = { ...user, ...profileDataToSave };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
 
@@ -150,9 +204,23 @@ export default function StudentProfilePage() {
   const handleCancel = () => {
     // Reset to original data
     if (user) {
-      setProfileData({
+      setProfileDataToSave({
+        fullName: '',
+        countryCode: '',
+        phone: '',
+        city: '',
+        university: '',
+        major: '',
+        graduationYear: '',
+        linkedInUrl: '',
+        interests: [],
+        bio: '',
+      });
+
+      setFetchedProfileData({
         fullName: user.fullName || '',
         email: user.email || '',
+        role: user.role || '',
         phone: user.phone || '',
         city: user.city || '',
         university: user.university || '',
@@ -161,6 +229,9 @@ export default function StudentProfilePage() {
         linkedInUrl: user.linkedInUrl || '',
         interests: user.interests || [],
         bio: user.bio || '',
+        isEmailVerified: user.isEmailVerified || false,
+        isProfileCompleted: user.isProfileCompleted || false,
+        profileImage: user.profileImage || '',
       });
     }
     setIsEditing(false);
@@ -303,12 +374,12 @@ export default function StudentProfilePage() {
                   {user?.profileImage ? (
                     <img
                       src={user.profileImage}
-                      alt={profileData.fullName}
+                      alt={fetchedProfileData.fullName}
                       className="w-32 h-32 rounded-full object-cover shadow-lg border-4 border-white dark:border-dark-700"
                     />
                   ) : (
                     <div className="w-32 h-32 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-4xl font-bold shadow-lg">
-                      {profileData.fullName.charAt(0) || 'S'}
+                      {fetchedProfileData.fullName.charAt(0) || 'S'}
                     </div>
                   )}
                   {isEditing && (
@@ -336,14 +407,14 @@ export default function StudentProfilePage() {
                   )}
                 </div>
                 <h2 className="text-2xl font-bold text-dark-900 dark:text-dark-50 mb-1">
-                  {profileData.fullName || 'Student Name'}
+                  {fetchedProfileData.fullName || 'Student Name'}
                 </h2>
                 <p className="text-sm text-dark-600 dark:text-dark-400 mb-4">
-                  {profileData.major || 'Computer Science'} Student
+                  {fetchedProfileData.major || 'Computer Science'} Student
                 </p>
-                {profileData.linkedInUrl && (
+                {fetchedProfileData.linkedInUrl && (
                   <a
-                    href={profileData.linkedInUrl}
+                    href={fetchedProfileData.linkedInUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -435,7 +506,7 @@ export default function StudentProfilePage() {
                       id="fullName"
                       name="fullName"
                       label="Full Name"
-                      value={profileData.fullName}
+                      value={fetchedProfileData.fullName}
                       onChange={handleChange}
                       disabled={!isEditing}
                       icon={<FiUser />}
@@ -446,33 +517,56 @@ export default function StudentProfilePage() {
                       name="email"
                       type="email"
                       label="Email Address"
-                      value={profileData.email}
+                      value={fetchedProfileData.email}
                       onChange={handleChange}
                       disabled={true}
                       icon={<FiMail />}
                       required
                     />
+                    {isEditing ? (
+                      <Select
+                        id="countryCode"
+                        name="countryCode"
+                        label="Country Code"
+                        onChange={handleChange}
+                        options={countries.map((c) => ({ value: c.iso, label: `${c.iso} (${c.dial})` }))}
+                        placeholder="Select your country code"
+                        disabled={!isEditing}
+                        required
+                      />
+                    ) : null}
                     <Input
                       id="phone"
                       name="phone"
                       type="tel"
                       label="Phone Number"
-                      value={profileData.phone}
+                      value={fetchedProfileData.phone}
                       onChange={handleChange}
                       disabled={!isEditing}
                       icon={<FiPhone />}
                       placeholder="05XXXXXXXX"
                     />
-                    <Select
-                      id="city"
-                      name="city"
-                      label="City"
-                      value={profileData.city}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      options={cities.map((city) => ({ value: city, label: city }))}
-                      placeholder="Select your city"
-                    />
+                    {isEditing ? (
+                      <Select
+                        id="city"
+                        name="city"
+                        label="City"
+                        value={fetchedProfileData.city}
+                        onChange={handleChange}
+                        options={cities.map((city) => ({ value: city, label: city }))}
+                        placeholder="Select your city"
+                      />
+                    ) : (
+                      <Input
+                        id="city"
+                        name="city"
+                        label="City"
+                        value={fetchedProfileData.city}
+                        disabled={true}
+                        icon={<FiMapPin />}
+                        onChange={() => { }}
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -483,32 +577,54 @@ export default function StudentProfilePage() {
                     Academic Information
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Select
-                      id="university"
-                      name="university"
-                      label="University"
-                      value={profileData.university}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      options={universities}
-                      placeholder="Select your university"
-                    />
-                    <Select
-                      id="major"
-                      name="major"
-                      label="Major"
-                      value={profileData.major}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      options={majors}
-                      placeholder="Select your major"
-                    />
+                    {isEditing ? (
+                      <Select
+                        id="university"
+                        name="university"
+                        label="University"
+                        value={fetchedProfileData.university}
+                        onChange={handleChange}
+                        options={universities}
+                        placeholder="Select your university"
+                      />
+                    ) : (
+                      <Input
+                        id="university"
+                        name="university"
+                        label="University"
+                        value={fetchedProfileData.university}
+                        disabled={true}
+                        icon={<FiBook />}
+                        onChange={() => { }}
+                      />
+                    )}
+                    {isEditing ? (
+                      <Select
+                        id="major"
+                        name="major"
+                        label="Major"
+                        value={fetchedProfileData.major}
+                        onChange={handleChange}
+                        options={majors}
+                        placeholder="Select your major"
+                      />
+                    ) : (
+                      <Input
+                        id="major"
+                        name="major"
+                        label="Major"
+                        value={fetchedProfileData.major}
+                        disabled={true}
+                        icon={<FiBook />}
+                        onChange={() => { }}
+                      />
+                    )}
                     <Input
                       id="graduationYear"
                       name="graduationYear"
                       type="text"
                       label="Graduation Year"
-                      value={profileData.graduationYear}
+                      value={fetchedProfileData.graduationYear}
                       onChange={handleChange}
                       disabled={!isEditing}
                       icon={<FiCalendar />}
@@ -519,7 +635,7 @@ export default function StudentProfilePage() {
                       name="linkedInUrl"
                       type="url"
                       label="LinkedIn Profile"
-                      value={profileData.linkedInUrl}
+                      value={fetchedProfileData.linkedInUrl}
                       onChange={handleChange}
                       disabled={!isEditing}
                       icon={<FiLinkedin />}
@@ -540,7 +656,7 @@ export default function StudentProfilePage() {
                     </label>
                     <textarea
                       name="bio"
-                      value={profileData.bio}
+                      value={fetchedProfileData.bio}
                       onChange={handleChange}
                       disabled={!isEditing}
                       rows={4}
