@@ -21,6 +21,7 @@ import {
   FiCamera,
   FiLogOut,
   FiLock,
+  FiTrash2,
 } from 'react-icons/fi';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -275,6 +276,30 @@ export default function StudentProfilePage() {
     }
   };
 
+  const handleImageDelete = async () => {
+    if (!confirm('Are you sure you want to delete your profile image?')) return;
+
+    setIsUploadingImage(true);
+    try {
+      const { deleteProfileImage } = await import('@/services/authService');
+      await deleteProfileImage();
+
+      // Update user data
+      const updatedUser = { ...user, profileImage: '' };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      // Also update fetchedProfileData just in case
+      setFetchedProfileData((prev) => ({ ...prev, profileImage: '' }));
+
+      console.log('Profile image deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting image:', error);
+      alert(error.message || 'Failed to delete image. Please try again.');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await logoutUser();
@@ -419,6 +444,17 @@ export default function StudentProfilePage() {
                           <FiCamera />
                         )}
                       </label>
+                      {user?.profileImage && (
+                        <button
+                          onClick={handleImageDelete}
+                          disabled={isUploadingImage}
+                          className={`absolute bottom-0 left-0 w-10 h-10 bg-white dark:bg-dark-700 rounded-full shadow-lg flex items-center justify-center text-red-600 hover:bg-red-50 transition-colors border-2 border-white dark:border-dark-800 cursor-pointer ${isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
+                          title="Delete profile image"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
