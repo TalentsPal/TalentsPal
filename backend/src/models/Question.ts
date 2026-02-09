@@ -1,12 +1,29 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 
+
+const BACKEND_CATEGORY = 0;
+const FRONTEND_CATEGORY = 1;
+export const VALID_CATEGORIES = [
+  'backend',
+  'frontend',
+];
+
+const EASY_DIFFICULTY = 0;
+const MEDIUM_DIFFICULTY = 1;
+const HARD_DIFFICULTY = 2;
+export const VALID_DIFFICULTIES = [
+  'easy',
+  'medium',
+  'hard',
+];
+
 export interface IQuestion extends Document {
   questionId: number;
-  category: 'backend' | 'frontend';
+  category: typeof VALID_CATEGORIES[number];
   question: string;
   options: string[];
   correctAnswer: string;
-  difficulty?: 'easy' | 'medium' | 'hard';
+  difficulty?: typeof VALID_DIFFICULTIES[number];
   tags?: string[];
   company?: string;
   isActive: boolean;
@@ -33,8 +50,8 @@ const questionSchema = new Schema<IQuestion>(
       type: String,
       required: [true, 'Category is required'],
       enum: {
-        values: ['backend', 'frontend'],
-        message: 'Category must be either backend or frontend',
+        values: VALID_CATEGORIES,
+        message: 'Category must be one of the following: ' + + VALID_CATEGORIES.join(', '),
       },
       index: true,
     },
@@ -68,10 +85,10 @@ const questionSchema = new Schema<IQuestion>(
     difficulty: {
       type: String,
       enum: {
-        values: ['easy', 'medium', 'hard'],
-        message: 'Difficulty must be easy, medium, or hard',
+        values: VALID_DIFFICULTIES,
+        message: 'Difficulty must be one of the following: ' + VALID_DIFFICULTIES.join(', '),
       },
-      default: 'medium',
+      default: VALID_DIFFICULTIES[MEDIUM_DIFFICULTY],
     },
     tags: {
       type: [String],
@@ -123,7 +140,7 @@ questionSchema.statics.getRandomQuestions = async function (
 
   // Get all matching questions first
   const allQuestions = await this.find(match).select('-__v');
-  
+
   // Shuffle using Fisher-Yates algorithm for better randomization
   const shuffled = [...allQuestions];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -131,13 +148,13 @@ questionSchema.statics.getRandomQuestions = async function (
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  
+
   // Add additional randomization by sorting with random values
   const doubleShuffled = shuffled
     .map(q => ({ question: q, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
     .map(item => item.question);
-  
+
   // Return requested count
   return doubleShuffled.slice(0, count);
 };
