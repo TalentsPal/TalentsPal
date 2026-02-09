@@ -72,7 +72,7 @@ export interface LoginFormData {
 export interface ChangePasswordFormData {
   currentPassword: string;
   newPassword: string;
-  confirmNewPassword: string;
+  confirmPassword: string;
 }
 
 // Form Validation Error Types

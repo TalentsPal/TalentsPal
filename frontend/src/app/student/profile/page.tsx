@@ -20,6 +20,7 @@ import {
   FiTarget,
   FiCamera,
   FiLogOut,
+  FiLock,
 } from 'react-icons/fi';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -27,6 +28,7 @@ import Button from '@/components/ui/Button';
 import { fetchUniversities, fetchMajors, fetchCities } from '@/services/metadataService';
 import { logoutUser, simpleLogout } from '@/services/authService';
 import { getCountries, getCountryCallingCode } from 'libphonenumber-js';
+import ChangePasswordModal from '@/components/profile/ChangePasswordModal';
 
 const countries = getCountries().map((iso) => ({
   iso,
@@ -66,6 +68,7 @@ interface ProfileDataToSave {
 export default function StudentProfilePage() {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -321,16 +324,29 @@ export default function StudentProfilePage() {
             </div>
 
             {!isEditing ? (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-                onClick={() => setIsEditing(true)}
-                className="px-6 py-3 bg-white text-purple-600 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-              >
-                <FiEdit2 />
-                Edit Profile
-              </motion.button>
+              <div className="flex gap-3">
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2 }}
+                  onClick={() => setIsEditing(true)}
+                  className="px-6 py-3 bg-white text-purple-600 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                >
+                  <FiEdit2 />
+                  Edit Profile
+                </motion.button>
+
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.25 }}
+                  onClick={() => setIsChangePasswordOpen(true)}
+                  className="px-6 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition-all flex items-center gap-2 backdrop-blur-sm border border-white/20"
+                >
+                  <FiLock />
+                  Change Password
+                </motion.button>
+              </div>
             ) : (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -670,6 +686,10 @@ export default function StudentProfilePage() {
           </motion.div>
         </div>
       </div>
-    </div>
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
+    </div >
   );
 }
