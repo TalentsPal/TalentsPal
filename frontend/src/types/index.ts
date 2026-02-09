@@ -68,6 +68,13 @@ export interface LoginFormData {
   rememberMe?: boolean;
 }
 
+// Change Password Form Types
+export interface ChangePasswordFormData {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
 // Form Validation Error Types
 export interface FormErrors {
   [key: string]: string;

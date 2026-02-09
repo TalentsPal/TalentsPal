@@ -5,7 +5,7 @@
 
 import { API_ENDPOINTS, getHeaders } from '@/config/api';
 import { apiFetch } from '@/lib/apiClient';
-import { SignupFormData, LoginFormData } from '@/types';
+import { SignupFormData, LoginFormData, ChangePasswordFormData } from '@/types';
 
 /**
  * Signup a new user
@@ -97,6 +97,26 @@ export const getCurrentUser = async () => {
     return data;
   } catch (error) {
     console.error('Get current user error:', error);
+    throw error;
+  }
+};
+
+export const changePassword = async (passwordData: ChangePasswordFormData) => {
+  try {
+    const response = await apiFetch(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
+      method: 'PUT',
+      body: JSON.stringify(passwordData),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to change password');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Change password error:', error);
     throw error;
   }
 };
