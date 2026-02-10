@@ -21,6 +21,7 @@ const DEFAULT_LEADERBOARD_LIMIT = 10;
 const MAX_LEADERBOARD_LIMIT = 100;
 
 /**
+ * DONE
  * Get random questions for a test (students only see questions without correct answers)
  */
 export const getRandomQuestions = async (req: Request, res: Response) => {
@@ -41,16 +42,16 @@ export const getRandomQuestions = async (req: Request, res: Response) => {
       MAX_QUESTION_COUNT
     );
 
-    // Get random questions
+    // Get random questions (without fetching correct answers)
     const questions = await Question.getRandomQuestions(
       category as string,
       questionCount,
       difficulty as string
     );
 
-    // Format questions for display (without correct answers)
+    // Format questions for display
     const formattedQuestions = questions.map((q: any) => {
-      const formatted = formatQuestionForDisplay(q, false);
+      const formatted = formatQuestionForDisplay(q, true);
       // Remove correct answer from response
       delete formatted.correctAnswer;
       return formatted;

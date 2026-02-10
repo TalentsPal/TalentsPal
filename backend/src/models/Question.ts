@@ -138,25 +138,15 @@ questionSchema.statics.getRandomQuestions = async function (
     match.difficulty = difficulty;
   }
 
-  // Get all matching questions first
-  const allQuestions = await this.find(match).select('-__v');
-
-  // Shuffle using Fisher-Yates algorithm for better randomization
-  const shuffled = [...allQuestions];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    // Use crypto random for better randomness
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-
-  // Add additional randomization by sorting with random values
-  const doubleShuffled = shuffled
-    .map(q => ({ question: q, sort: Math.random() }))
-    .sort((a, b) => a.sort - b.sort)
-    .map(item => item.question);
-
-  // Return requested count
-  return doubleShuffled.slice(0, count);
+  return this.aggregate([
+    { $match: match },
+    { $sample: { size: count } },
+    {
+      $project: {
+        __v: 0,
+      },
+    },
+  ]);
 };
 
 // Instance method to format question for display (without correct answer)

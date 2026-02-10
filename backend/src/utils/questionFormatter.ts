@@ -7,7 +7,7 @@
  */
 export const sanitizeText = (text: string): string => {
   if (!text) return '';
-  
+
   return text
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -104,24 +104,40 @@ export const shuffleArray = <T>(array: T[]): T[] => {
 /**
  * Format question for display with optional option shuffling
  */
+type QuestionOption = {
+  value: string;
+  isCorrect: boolean;
+};
+
 export const formatQuestionForDisplay = (
   question: any,
-  shuffleOptions: boolean = false
-): any => {
-  const formattedQuestion = {
-    ...question,
-    question: question.question,
-    options: question.options,
-  };
+  shuffleOptions = false
+) => {
+  let options = question.options;
 
   if (shuffleOptions) {
-    // Keep track of correct answer after shuffling
-    const correctIndex = formattedQuestion.options.indexOf(question.correctAnswer);
-    formattedQuestion.options = shuffleArray(formattedQuestion.options);
-    formattedQuestion.correctAnswer = formattedQuestion.options[correctIndex];
+    const paired = options.map((opt: string) => ({
+      value: opt,
+      isCorrect: opt === question.correctAnswer,
+    } as QuestionOption));
+
+    const shuffled = shuffleArray<QuestionOption>(paired);
+
+    options = shuffled.map(p => p.value);
+
+    const correctAnswer = shuffled.find(p => p.isCorrect)?.value;
+
+    return {
+      ...question,
+      options,
+      correctAnswer,
+    };
   }
 
-  return formattedQuestion;
+  return {
+    ...question,
+    options,
+  };
 };
 
 /**
