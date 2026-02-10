@@ -84,10 +84,6 @@ export const validateSignupForm = (data: SignupFormData): FormErrors => {
     if (data.graduationYear && !isValidYear(data.graduationYear)) {
       errors.graduationYear = 'Please enter a valid graduation year';
     }
-
-    if (!data.interests || data.interests.length === 0) {
-      errors.interests = 'Please select at least one interest';
-    }
   }
 
   // Company-specific validations

@@ -7,7 +7,7 @@ import { cn } from '@/utils/cn';
 export interface TagInputProps {
     label?: string;
     error?: string;
-    helperText?: string;
+    helperText?: React.ReactNode;
     required?: boolean;
     value: string[];
     onChange: (value: string[]) => void;
