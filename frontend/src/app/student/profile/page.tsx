@@ -26,6 +26,7 @@ import {
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
+import TagInput from '@/components/ui/TagInput';
 import { fetchUniversities, fetchMajors, fetchCities } from '@/services/metadataService';
 import { logoutUser, simpleLogout } from '@/services/authService';
 import { getCountries, getCountryCallingCode } from 'libphonenumber-js';
@@ -179,6 +180,11 @@ export default function StudentProfilePage() {
     const { name, value } = e.target;
     setProfileDataToSave((prev) => ({ ...prev, [name]: value }));
     setFetchedProfileData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleInterestsChange = (newInterests: string[]) => {
+    setProfileDataToSave((prev) => ({ ...prev, interests: newInterests }));
+    setFetchedProfileData((prev) => ({ ...prev, interests: newInterests }));
   };
 
   const handleSave = async () => {
@@ -714,6 +720,19 @@ export default function StudentProfilePage() {
                       rows={4}
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-700 text-dark-900 dark:text-dark-50 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all disabled:bg-gray-50 dark:disabled:bg-dark-800 disabled:text-gray-500"
                       placeholder="Tell us about yourself, your goals, and what you're looking for..."
+                    />
+                  </div>
+
+                  {/* Interests */}
+                  <div className="mt-5">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Interests
+                    </label>
+                    <TagInput
+                      value={fetchedProfileData.interests}
+                      onChange={handleInterestsChange}
+                      disabled={!isEditing}
+                      placeholder="Add an interest (e.g., Web Development, UI/UX)..."
                     />
                   </div>
                 </div>
