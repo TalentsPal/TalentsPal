@@ -1,8 +1,8 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 
 
-const BACKEND_CATEGORY = 0;
-const FRONTEND_CATEGORY = 1;
+export const BACKEND_CATEGORY = 0;
+export const FRONTEND_CATEGORY = 1;
 export const VALID_CATEGORIES = [
   'backend',
   'frontend',

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import Question, { IQuestion } from '../models/Question';
+import Question, { IQuestion, VALID_CATEGORIES, BACKEND_CATEGORY } from '../models/Question';
 import TestAttempt from '../models/TestAttempt';
 import { validationResult } from 'express-validator';
 import {
@@ -28,10 +28,10 @@ export const getRandomQuestions = async (req: Request, res: Response) => {
     const { category, count = DEFAULT_QUESTION_COUNT, difficulty } = req.query;
 
     // Validate category
-    if (!category || !['backend', 'frontend'].includes(category as string)) {
+    if (!category || !VALID_CATEGORIES.includes(category as string)) {
       return res.status(400).json({
         success: false,
-        message: 'Valid category (backend or frontend) is required',
+        message: 'A valid category (' + VALID_CATEGORIES.join(',') + ') is required',
       });
     }
 
@@ -323,7 +323,7 @@ export const createQuestion = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Error creating question:', error);
-    
+
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
@@ -354,7 +354,7 @@ export const updateQuestion = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const errors = validationResult(req);
-    
+
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
@@ -581,14 +581,14 @@ export const getUserStats = async (req: Request, res: Response) => {
 export const getLeaderboard = async (req: Request, res: Response) => {
   try {
     const {
-      category = 'backend',
+      category = VALID_CATEGORIES[BACKEND_CATEGORY],
       limit = DEFAULT_LEADERBOARD_LIMIT,
     } = req.query;
 
-    if (!['backend', 'frontend'].includes(category as string)) {
+    if (!VALID_CATEGORIES.includes(category as string)) {
       return res.status(400).json({
         success: false,
-        message: 'Category must be backend or frontend',
+        message: 'Category must be one of the following: ' + VALID_CATEGORIES.join(','),
       });
     }
 
