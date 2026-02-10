@@ -71,3 +71,29 @@ export const fetchCities = async (): Promise<string[]> => {
     return [];
   }
 };
+
+/**
+ * Search interests/tags from StackExchange API
+ */
+export const searchInterests = async (query: string): Promise<string[]> => {
+  if (!query || query.length < 2) return [];
+
+  query = query.toLowerCase();
+
+  try {
+    const response = await axios.get('https://api.stackexchange.com/2.3/tags', {
+      params: {
+        order: 'desc',
+        sort: 'popular',
+        site: 'stackoverflow',
+        inname: query,
+        pagesize: 5
+      }
+    });
+
+    return response.data.items.map((item: any) => item.name);
+  } catch (error) {
+    console.error('Error searching interests:', error);
+    return [];
+  }
+};

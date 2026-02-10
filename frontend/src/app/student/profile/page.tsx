@@ -27,7 +27,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import TagInput from '@/components/ui/TagInput';
-import { fetchUniversities, fetchMajors, fetchCities } from '@/services/metadataService';
+import { fetchUniversities, fetchMajors, fetchCities, searchInterests } from '@/services/metadataService';
 import { logoutUser, simpleLogout } from '@/services/authService';
 import { getCountries, getCountryCallingCode } from 'libphonenumber-js';
 import ChangePasswordModal from '@/components/profile/ChangePasswordModal';
@@ -733,6 +733,8 @@ export default function StudentProfilePage() {
                       onChange={handleInterestsChange}
                       disabled={!isEditing}
                       placeholder="Add an interest (e.g., Web Development, UI/UX)..."
+                      helperText="Add tags by pressing Enter or comma (,). Remove tags by clicking × or pressing Backspace."
+                      onSearch={searchInterests}
                     />
                   </div>
                 </div>

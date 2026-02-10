@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, KeyboardEvent, useRef } from 'react';
+import React, { useState, KeyboardEvent, useRef, useEffect } from 'react';
 import { FiX } from 'react-icons/fi';
 import { cn } from '@/utils/cn';
 
@@ -15,6 +15,7 @@ export interface TagInputProps {
     id?: string;
     maxTags?: number;
     disabled?: boolean;
+    onSearch?: (query: string) => Promise<string[]>;
 }
 
 const TagInput: React.FC<TagInputProps> = ({
@@ -27,11 +28,39 @@ const TagInput: React.FC<TagInputProps> = ({
     placeholder = 'Type and press Enter...',
     id,
     maxTags,
-    disabled
+    disabled,
+    onSearch
 }) => {
     const [inputValue, setInputValue] = useState('');
     const [isFocused, setIsFocused] = useState(false);
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Debounce search
+    useEffect(() => {
+        if (!onSearch || !inputValue.trim()) {
+            setSuggestions([]);
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            setIsLoading(true);
+            try {
+                const results = await onSearch(inputValue);
+                // Filter out already selected tags
+                setSuggestions(results.filter(tag => !value.includes(tag)));
+                setShowSuggestions(results.length > 0);
+            } catch (error) {
+                console.error('Error fetching suggestions:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [inputValue, onSearch, value]);
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
         if (disabled) return;
@@ -72,7 +101,7 @@ const TagInput: React.FC<TagInputProps> = ({
     };
 
     return (
-        <div className="w-full">
+        <div className="w-full relative">
             {label && (
                 <label
                     htmlFor={id}
@@ -118,11 +147,19 @@ const TagInput: React.FC<TagInputProps> = ({
                     type="text"
                     id={id}
                     value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
+                    onChange={(e) => {
+                        setInputValue(e.target.value);
+                        setShowSuggestions(true);
+                    }}
                     onKeyDown={handleKeyDown}
-                    onFocus={() => setIsFocused(true)}
+                    onFocus={() => {
+                        setIsFocused(true);
+                        setShowSuggestions(!!inputValue);
+                    }}
                     onBlur={() => {
                         setIsFocused(false);
+                        // Hide suggestions immediately - selection via mousedown handles the add
+                        setShowSuggestions(false);
                         addTag(); // Add tag on blur if there's text
                     }}
                     className="flex-1 min-w-[120px] bg-transparent border-none outline-none focus:ring-0 p-1 text-dark-900 dark:text-dark-50 placeholder:text-dark-400 dark:placeholder:text-dark-500"
@@ -130,6 +167,34 @@ const TagInput: React.FC<TagInputProps> = ({
                     disabled={disabled}
                 />
             </div>
+
+            {/* Suggestions Dropdown */}
+            {showSuggestions && suggestions.length > 0 && !disabled && (
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg shadow-lg max-h-60 overflow-auto">
+                    {isLoading ? (
+                        <div className="p-2 text-center text-sm text-gray-500">Loading...</div>
+                    ) : (
+                        suggestions.map((suggestion) => (
+                            <button
+                                key={suggestion}
+                                type="button"
+                                className="w-full text-left px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 text-dark-900 dark:text-dark-50 transition-colors"
+                                onMouseDown={(e) => {
+                                    e.preventDefault(); // Prevent input blur
+                                    if (value.includes(suggestion)) return;
+                                    onChange([...value, suggestion]);
+                                    setInputValue('');
+                                    setSuggestions([]);
+                                    setShowSuggestions(false);
+                                    // inputRef.current?.focus(); // Already focused since we prevented blur
+                                }}
+                            >
+                                {suggestion}
+                            </button>
+                        ))
+                    )}
+                </div>
+            )}
 
             {error && (
                 <p id={`${id}-error`} className="error-message" role="alert">
