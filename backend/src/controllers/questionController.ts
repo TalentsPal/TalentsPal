@@ -9,6 +9,7 @@ import {
   getGrade,
 } from '../utils/questionFormatter';
 import { checkAndUnlockAchievements } from './achievementController';
+import mongoose from 'mongoose';
 
 // Constants
 const DEFAULT_QUESTION_COUNT = 10;
@@ -74,11 +75,20 @@ export const getRandomQuestions = async (req: Request, res: Response) => {
 };
 
 /**
+ * DONE
  * Get a single question by ID (without correct answer for students)
  */
 export const getQuestionById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid question ID',
+      });
+    }
+
     const question = await Question.findById(id);
 
     if (!question) {
